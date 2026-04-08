@@ -1487,10 +1487,17 @@ class ISFPApp(QMainWindow):
         
         clear_hist_btn = QPushButton("清空")
         clear_hist_btn.setCursor(Qt.PointingHandCursor)
-        clear_hist_btn.setFixedSize(50, 24)
+        clear_hist_btn.setFixedSize(50, 26)
         clear_hist_btn.setToolTip("清空所有历史记录")
         clear_hist_btn.setStyleSheet("""
-            QPushButton { background: rgba(192, 57, 43, 0.8); color: white; border-radius: 4px; font-size: 12px; border: none; }
+            QPushButton { 
+                background: rgba(192, 57, 43, 0.8); 
+                color: white; 
+                border-radius: 4px; 
+                font-size: 12px; 
+                border: none;
+                padding: 0;
+            }
             QPushButton:hover { background: #e74c3c; }
         """)
         clear_hist_btn.clicked.connect(self.confirm_clear_history)
