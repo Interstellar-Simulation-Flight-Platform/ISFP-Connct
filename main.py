@@ -5,6 +5,8 @@ import time
 import json
 import os
 import shutil
+import logging
+from datetime import datetime
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QLineEdit, QPushButton, QTextEdit, 
                              QLabel, QTabWidget, QListWidget, QListWidgetItem,
@@ -17,6 +19,56 @@ from PySide6.QtCore import Qt, QSize, QTimer, QThread, Signal, QUrl, QObject, Sl
 from PySide6.QtGui import QPixmap, QIcon, QFont, QPalette, QColor, QBrush, QImage, QPainter, QPainterPath, QPen
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from PySide6.QtWebChannel import QWebChannel
+
+# ================= 日志配置 =================
+def setup_logging():
+    """配置日志记录"""
+    # 确保 logs 文件夹存在
+    logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+    if not os.path.exists(logs_dir):
+        os.makedirs(logs_dir)
+    log_file = os.path.join(logs_dir, 'main.log')
+    xz_log_file = os.path.join(logs_dir, 'xzphotos_get.log')
+    
+    # 创建格式化器
+    formatter = logging.Formatter(
+        '[%(asctime)s] [%(levelname)-8s] [%(name)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    
+    # 主日志文件处理器
+    file_handler = logging.FileHandler(log_file, encoding='utf-8', mode='w')
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(logging.DEBUG)
+    
+    # XZPhotos 专用日志处理器
+    xz_file_handler = logging.FileHandler(xz_log_file, encoding='utf-8', mode='w')
+    xz_file_handler.setFormatter(formatter)
+    xz_file_handler.setLevel(logging.DEBUG)
+    
+    # 控制台处理器
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(logging.INFO)
+    
+    # 根日志配置
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
+    
+    # XZPhotos 专用日志配置
+    xz_logger = logging.getLogger('ISFP-Connect.XZPhotos')
+    xz_logger.addHandler(xz_file_handler)
+    xz_logger.propagate = False  # 不向父日志传播
+    
+    return logging.getLogger('ISFP-Connect')
+
+# 初始化日志
+logger = setup_logging()
+logger.info("=" * 60)
+logger.info("ISFP-Connect 应用程序启动")
+logger.info("=" * 60)
 
 # 加载 .env 文件
 def load_env_file():
@@ -31,6 +83,7 @@ def load_env_file():
                     os.environ[key] = value
 
 load_env_file()
+logger.info("已加载 .env 文件")
 
 # ================= API 配置 =================
 ISFP_API_BASE = "https://isfpapi.flyisfp.com/api"
@@ -40,10 +93,14 @@ XZPHOTOS_API_BASE = "https://api.xzphotos.cn/api/v1"
 XZPHOTOS_API_KEY = os.environ.get('XZPHOTOS_API_KEY', '')
 XZPHOTOS_API_SECRET = os.environ.get('XZPHOTOS_API_SECRET', '')
 
+logger.info(f"XZPhotos API 配置: 已配置")
+
 # 应用版本信息
 APP_VERSION = os.environ.get('APP_VERSION', '1.0.0')
 APP_VERSION_CODE = int(os.environ.get('APP_VERSION_CODE', '1'))
 CHANGELOG = os.environ.get('CHANGELOG', '')
+
+logger.info(f"应用版本: {APP_VERSION} (build {APP_VERSION_CODE})")
 
 import hashlib
 import hmac
@@ -51,27 +108,40 @@ import uuid
 import time as time_module
 
 def generate_xzphotos_signature(params, secret_key):
-    """生成 XZPhotos API 签名"""
+    """生成 XZPhotos API 签名
+    
+    签名算法:
+    1. 生成 timestamp 和 nonce
+    2. 将所有参数（包括 timestamp 和 nonce）按 key 字母顺序排序
+    3. 用 & 连接成 key=value 格式的字符串
+    4. 使用 secret_key 作为 HMAC-SHA256 的 key，对参数字符串进行签名
+    """
+    sig_logger = logging.getLogger('ISFP-Connect.XZPhotos.Signature')
+    sig_logger.debug(f"签名生成 - 输入参数: {params}")
+    
     # 生成时间戳和 nonce
     timestamp = str(int(time_module.time()))
     nonce = str(uuid.uuid4())
+    sig_logger.debug(f"生成时间戳: {timestamp}, Nonce: {nonce}")
     
     # 合并参数
     all_params = {**params, 'timestamp': timestamp, 'nonce': nonce}
+    sig_logger.debug(f"合并后参数: {all_params}")
     
     # 按 key 排序
     sorted_keys = sorted(all_params.keys())
+    sig_logger.debug(f"排序后的 keys: {sorted_keys}")
+    
     param_string = '&'.join([f'{k}={all_params[k]}' for k in sorted_keys])
+    sig_logger.debug(f"参数字符串: {param_string}")
     
-    # 追加 SecretKey
-    to_sign = param_string + secret_key
-    
-    # 生成签名
+    # 使用 HMAC-SHA256 签名，secret_key 作为 key
     signature = hmac.new(
-        secret_key.encode(),
-        to_sign.encode(),
+        secret_key.encode('utf-8'),
+        param_string.encode('utf-8'),
         hashlib.sha256
     ).hexdigest()
+    sig_logger.debug(f"生成的签名: {signature}")
     
     return {
         'timestamp': timestamp,
@@ -135,19 +205,34 @@ class XZPhotosAPIThread(QThread):
         self.api_secret = api_secret or XZPHOTOS_API_SECRET
     
     def run(self):
+        xz_logger = logging.getLogger('ISFP-Connect.XZPhotos')
         try:
-            # 准备参数
+            xz_logger.info(f"=" * 60)
+            xz_logger.info(f"XZPhotos API 请求开始 - 注册号: {self.registration}")
+            xz_logger.info(f"=" * 60)
+            
+            # 准备参数（不包含 registration，因为它在路径中）
             params = {
-                'registration': self.registration,
                 'limit': '1',
                 'page': '1'
             }
+            xz_logger.debug(f"请求参数: {params}")
             
             # 生成签名
             sig_data = generate_xzphotos_signature(params, self.api_secret)
+            xz_logger.debug(f"生成的时间戳: {sig_data['timestamp']}")
+            xz_logger.debug(f"生成的 Nonce: {sig_data['nonce']}")
             
-            # 构建 URL
-            url = f"{XZPHOTOS_API_BASE}/aircraft-images/{self.registration}?{sig_data['param_string']}"
+            # 构建 URL（参数需要编码）
+            from urllib.parse import urlencode
+            encoded_params = urlencode({
+                'limit': '1',
+                'page': '1',
+                'timestamp': sig_data['timestamp'],
+                'nonce': sig_data['nonce']
+            })
+            url = f"{XZPHOTOS_API_BASE}/aircraft-images/{self.registration}?{encoded_params}"
+            xz_logger.info(f"请求 URL: {url}")
             
             # 设置请求头
             headers = {
@@ -156,10 +241,16 @@ class XZPhotosAPIThread(QThread):
                 'X-TIMESTAMP': sig_data['timestamp'],
                 'X-NONCE': sig_data['nonce']
             }
+            xz_logger.info(f"请求头已设置")
             
             # 发送请求
+            xz_logger.info(f"发送 GET 请求...")
             response = requests.get(url, headers=headers, timeout=10)
+            xz_logger.info(f"响应状态码: {response.status_code}")
+            xz_logger.debug(f"响应内容: {response.text[:500]}")
+            
             result = response.json()
+            xz_logger.info(f"解析后的响应: {json.dumps(result, ensure_ascii=False, indent=2)[:500]}")
             
             # 转换为与旧 API 兼容的格式
             if result.get('success') and result.get('data', {}).get('images'):
@@ -177,19 +268,26 @@ class XZPhotosAPIThread(QThread):
                             'registration': self.registration
                         }
                     }
+                    xz_logger.info(f"找到图片: {compatible_result['data']['photo_image_url'][:60]}...")
                 else:
                     compatible_result = {
                         'success': True,
                         'data': {'photo_found': False}
                     }
+                    xz_logger.info(f"未找到图片 (images 为空)")
             else:
                 compatible_result = {
                     'success': False,
                     'data': {'photo_found': False}
                 }
+                xz_logger.warning(f"API 返回失败: success={result.get('success')}, message={result.get('message', 'N/A')}")
             
+            xz_logger.info(f"转换后的结果: {json.dumps(compatible_result, ensure_ascii=False)}")
+            xz_logger.info(f"XZPhotos API 请求完成")
             self.finished.emit(compatible_result)
         except Exception as e:
+            xz_logger.error(f"XZPhotos API 请求异常: {str(e)}")
+            xz_logger.exception("详细异常信息:")
             self.error.emit(str(e))
 
 # ================= 工具类：防抖装饰器 =================
@@ -243,6 +341,7 @@ class DispatchManager:
         self.save_json(self.hangar_file, self.hangar)
 
     def add_flight(self, flight):
+        flight['status'] = '计划'  # 默认状态
         self.history.insert(0, flight) # 最新航班排前面
         self.save_json(self.history_file, self.history)
 
@@ -254,6 +353,20 @@ class DispatchManager:
     def clear_history(self):
         self.history = []
         self.save_json(self.history_file, self.history)
+
+    def update_flight_status(self, flight, new_status):
+        """更新航班状态 - 使用航班号和日期作为唯一标识"""
+        callsign = flight.get('callsign')
+        date = flight.get('date')
+        
+        for index, f in enumerate(self.history):
+            if f.get('callsign') == callsign and f.get('date') == date:
+                self.history[index]['status'] = new_status
+                self.save_json(self.history_file, self.history)
+                # 同时更新传入的flight对象的状态
+                flight['status'] = new_status
+                return True
+        return False
 
     def delete_aircraft(self, aircraft):
         # 使用注册号作为唯一标识尝试删除，或者直接比较字典
@@ -293,35 +406,114 @@ class AddAircraftDialog(QDialog):
     def __init__(self, parent=None, aircraft_data=None):
         super().__init__(parent)
         self.setWindowTitle("修改航空器" if aircraft_data else "添加航空器")
-        self.setFixedSize(400, 300)
+        self.setFixedSize(420, 380)
         self.parent_app = parent
         self.image_path = None
         self.aircraft_data = aircraft_data
         
-        layout = QFormLayout(self)
+        # 主布局
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(15)
         
+        # 标题
+        title = QLabel("✈️ 修改航空器" if aircraft_data else "✈️ 添加航空器")
+        title.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
+        title.setStyleSheet("color: white; margin-bottom: 5px;")
+        title.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(title)
+        
+        # 分隔线
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setStyleSheet("background: rgba(255,255,255,0.2);")
+        line.setFixedHeight(1)
+        main_layout.addWidget(line)
+        
+        # 表单区域
+        form_layout = QFormLayout()
+        form_layout.setContentsMargins(0, 10, 0, 0)
+        form_layout.setSpacing(12)
+        form_layout.setLabelAlignment(Qt.AlignLeft)
+        form_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        
+        # 设置表单标签样式
+        form_layout.setHorizontalSpacing(15)
+        form_layout.setVerticalSpacing(12)
+        
+        # 输入框样式
+        input_style = """
+            QLineEdit { 
+                padding: 6px 10px; 
+                border-radius: 5px; 
+                border: 1px solid rgba(255,255,255,0.2); 
+                background: rgba(255,255,255,0.1); 
+                color: white;
+                font-size: 13px;
+            }
+            QLineEdit:focus { border: 1px solid #3498db; }
+        """
+        
+        # 机型输入
         self.type_input = QLineEdit()
-        layout.addRow("机型 (Type):", self.type_input)
+        self.type_input.setPlaceholderText("如: A320, B737")
+        self.type_input.setStyleSheet(input_style)
+        form_layout.addRow("机型 (Type):", self.type_input)
         
+        # 注册号输入
         self.reg_input = QLineEdit()
-        layout.addRow("注册号 (Reg):", self.reg_input)
+        self.reg_input.setPlaceholderText("如: B-1234")
+        self.reg_input.setStyleSheet(input_style)
+        form_layout.addRow("注册号 (Reg):", self.reg_input)
         
+        # 航司输入
         self.airline_input = QLineEdit()
-        layout.addRow("航司 (ICAO):", self.airline_input)
+        self.airline_input.setPlaceholderText("如: CCA, CES")
+        self.airline_input.setStyleSheet(input_style)
+        form_layout.addRow("航司 (ICAO):", self.airline_input)
         
-        # 图片选择
-        img_layout = QHBoxLayout()
+        # 图片选择区域
+        img_widget = QWidget()
+        img_layout = QHBoxLayout(img_widget)
+        img_layout.setContentsMargins(0, 0, 0, 0)
+        img_layout.setSpacing(8)
+        
         self.img_label = QLabel("未选择图片")
-        self.img_label.setStyleSheet("color: #aaa;")
-        btn_select = QPushButton("选择图片")
-        btn_select.clicked.connect(self.select_image)
-        img_layout.addWidget(self.img_label)
-        img_layout.addWidget(btn_select)
-        layout.addRow("飞机图片:", img_layout)
+        self.img_label.setStyleSheet("""
+            color: #aaa; 
+            padding: 6px 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 5px;
+            border: 1px dashed rgba(255,255,255,0.2);
+            font-size: 12px;
+        """)
         
-        self.status_label = QLabel("若不上传图片，将自动从网络获取")
-        self.status_label.setStyleSheet("color: #f39c12; font-size: 12px;")
-        layout.addRow(self.status_label)
+        btn_select = QPushButton("选择图片")
+        btn_select.setCursor(Qt.PointingHandCursor)
+        btn_select.setStyleSheet("""
+            QPushButton { 
+                padding: 6px 12px; 
+                background: rgba(52, 152, 219, 0.8); 
+                color: white; 
+                border: none; 
+                border-radius: 5px;
+                font-size: 12px;
+            }
+            QPushButton:hover { background: #3498db; }
+        """)
+        btn_select.clicked.connect(self.select_image)
+        
+        img_layout.addWidget(self.img_label, 1)
+        img_layout.addWidget(btn_select)
+        form_layout.addRow("飞机图片:", img_widget)
+        
+        # 提示信息
+        hint_label = QLabel("若不上传图片，将自动从网络获取")
+        hint_label.setStyleSheet("color: #f39c12; font-size: 11px;")
+        form_layout.addRow("", hint_label)
+        
+        main_layout.addLayout(form_layout)
+        main_layout.addStretch()
         
         # 填充数据
         if aircraft_data:
@@ -331,25 +523,71 @@ class AddAircraftDialog(QDialog):
             if aircraft_data.get('image'):
                 self.image_path = aircraft_data['image']
                 self.img_label.setText(os.path.basename(self.image_path))
+                self.img_label.setStyleSheet("""
+                    color: #2ecc71; 
+                    padding: 8px 12px;
+                    background: rgba(46, 204, 113, 0.1);
+                    border-radius: 6px;
+                    border: 1px solid rgba(46, 204, 113, 0.3);
+                """)
         
-        # 按钮
-        btn_box = QHBoxLayout()
-        save_btn = QPushButton("保存")
-        save_btn.clicked.connect(self.accept)
+        # 按钮区域
+        btn_container = QWidget()
+        btn_layout = QHBoxLayout(btn_container)
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+        btn_layout.setSpacing(15)
+        
         cancel_btn = QPushButton("取消")
+        cancel_btn.setCursor(Qt.PointingHandCursor)
+        cancel_btn.setStyleSheet("""
+            QPushButton { 
+                padding: 10px 30px; 
+                background: rgba(127, 140, 141, 0.5); 
+                color: white; 
+                border: none; 
+                border-radius: 8px;
+                font-size: 14px;
+            }
+            QPushButton:hover { background: rgba(127, 140, 141, 0.8); }
+        """)
         cancel_btn.clicked.connect(self.reject)
-        btn_box.addWidget(save_btn)
-        btn_box.addWidget(cancel_btn)
-        layout.addRow(btn_box)
         
-        # 样式
+        save_btn = QPushButton("💾 保存")
+        save_btn.setCursor(Qt.PointingHandCursor)
+        save_btn.setStyleSheet("""
+            QPushButton { 
+                padding: 10px 30px; 
+                background: rgba(46, 204, 113, 0.8); 
+                color: white; 
+                border: none; 
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background: #2ecc71; }
+        """)
+        save_btn.clicked.connect(self.accept)
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(save_btn)
+        
+        main_layout.addWidget(btn_container)
+        
+        # 对话框样式
         self.setStyleSheet("""
-            QDialog { background: #2c3e50; color: white; }
-            QLineEdit { padding: 5px; border-radius: 4px; border: 1px solid #555; background: #34495e; color: white; }
-            QPushButton { padding: 5px 15px; background: #3498db; color: white; border: none; border-radius: 4px; }
-            QPushButton:hover { background: #2980b9; }
+            QDialog { 
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+                    stop:0 #1a1a2e, stop:1 #16213e); 
+            }
             QLabel { color: white; }
         """)
+    
+    def create_label(self, text):
+        """创建表单标签"""
+        label = QLabel(text)
+        label.setStyleSheet("color: rgba(255,255,255,0.8); font-size: 14px;")
+        return label
 
     def select_image(self):
         path, _ = QFileDialog.getOpenFileName(self, "选择飞机图片", "", "Images (*.png *.jpg *.jpeg)")
@@ -369,100 +607,361 @@ class NewFlightDialog(QDialog):
     def __init__(self, hangar, parent=None):
         super().__init__(parent)
         self.setWindowTitle("新建航班")
-        self.resize(500, 600)
+        self.setFixedSize(550, 700)
         self.hangar = hangar
         
-        layout = QFormLayout(self)
+        # 主布局
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(25, 25, 25, 25)
+        main_layout.setSpacing(15)
+        
+        # 标题
+        title = QLabel("🛫 新建航班计划")
+        title.setFont(QFont("Microsoft YaHei", 20, QFont.Bold))
+        title.setStyleSheet("color: white; padding-bottom: 10px;")
+        title.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(title)
+        
+        # 分隔线
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setStyleSheet("background: rgba(255,255,255,0.2);")
+        line.setFixedHeight(1)
+        main_layout.addWidget(line)
+        
+        # 滚动区域
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("""
+            QScrollArea { border: none; background: transparent; }
+            QScrollBar:vertical {
+                background: rgba(0, 0, 0, 0.3);
+                width: 8px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(255, 255, 255, 0.3);
+            }
+        """)
+        
+        scroll_content = QWidget()
+        scroll_content.setStyleSheet("background: transparent;")
+        form_layout = QFormLayout(scroll_content)
+        form_layout.setContentsMargins(0, 15, 0, 15)
+        form_layout.setSpacing(18)
+        form_layout.setLabelAlignment(Qt.AlignRight)
+        
+        # 基础信息分组
+        basic_group = self.create_group_box("📋 基础信息")
+        basic_layout = QFormLayout(basic_group)
+        basic_layout.setSpacing(12)
         
         self.callsign_input = QLineEdit()
-        layout.addRow("航班号:", self.callsign_input)
+        self.callsign_input.setPlaceholderText("如: CCA1234")
+        self.callsign_input.setStyleSheet(self.get_input_style())
+        basic_layout.addRow(self.create_label("航班号:"), self.callsign_input)
+        
+        # 机场选择行
+        airport_widget = QWidget()
+        airport_layout = QHBoxLayout(airport_widget)
+        airport_layout.setContentsMargins(0, 0, 0, 0)
+        airport_layout.setSpacing(10)
         
         self.dep_input = QLineEdit()
-        layout.addRow("出发机场 (ICAO):", self.dep_input)
+        self.dep_input.setPlaceholderText("出发 ICAO")
+        self.dep_input.setStyleSheet(self.get_input_style())
+        self.dep_input.setMaximumWidth(100)
+        
+        arrow_label = QLabel("→")
+        arrow_label.setStyleSheet("color: #3498db; font-size: 20px; font-weight: bold;")
+        arrow_label.setAlignment(Qt.AlignCenter)
         
         self.arr_input = QLineEdit()
-        layout.addRow("到达机场 (ICAO):", self.arr_input)
+        self.arr_input.setPlaceholderText("到达 ICAO")
+        self.arr_input.setStyleSheet(self.get_input_style())
+        self.arr_input.setMaximumWidth(100)
+        
+        airport_layout.addWidget(self.dep_input)
+        airport_layout.addWidget(arrow_label)
+        airport_layout.addWidget(self.arr_input)
+        airport_layout.addStretch()
+        
+        basic_layout.addRow(self.create_label("航段:"), airport_widget)
         
         self.aircraft_combo = QComboBox()
+        self.aircraft_combo.setStyleSheet(self.get_combo_style())
         for ac in hangar:
             self.aircraft_combo.addItem(f"{ac['reg']} - {ac['type']}", ac)
-        layout.addRow("选择航空器:", self.aircraft_combo)
+        basic_layout.addRow(self.create_label("航空器:"), self.aircraft_combo)
         
+        form_layout.addRow(basic_group)
+        
+        # 时间分组
+        time_group = self.create_group_box("⏰ 时间设置")
+        time_layout = QFormLayout(time_group)
+        time_layout.setSpacing(12)
+        
+        # 起飞时间
         self.time_edit = QTimeEdit()
         self.time_edit.setDisplayFormat("HH:mm")
         self.time_edit.setButtonSymbols(QAbstractSpinBox.NoButtons)
-        layout.addRow("计划起飞时间:", self.time_edit)
+        self.time_edit.setStyleSheet(self.get_time_style())
+        time_layout.addRow(self.create_label("计划起飞 (ETD):"), self.time_edit)
         
+        # 落地时间
         self.arr_time_edit = QTimeEdit()
         self.arr_time_edit.setDisplayFormat("HH:mm")
         self.arr_time_edit.setButtonSymbols(QAbstractSpinBox.NoButtons)
-        layout.addRow("计划落地时间:", self.arr_time_edit)
+        self.arr_time_edit.setStyleSheet(self.get_time_style())
+        time_layout.addRow(self.create_label("计划落地 (ETA):"), self.arr_time_edit)
+        
+        # 滑行时间行
+        taxi_widget = QWidget()
+        taxi_layout = QHBoxLayout(taxi_widget)
+        taxi_layout.setContentsMargins(0, 0, 0, 0)
+        taxi_layout.setSpacing(15)
+        
+        self.taxi_out = QSpinBox()
+        self.taxi_out.setRange(0, 60)
+        self.taxi_out.setValue(10)
+        self.taxi_out.setSuffix(" min")
+        self.taxi_out.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        self.taxi_out.setStyleSheet(self.get_spin_style())
+        
+        self.taxi_in = QSpinBox()
+        self.taxi_in.setRange(0, 60)
+        self.taxi_in.setValue(5)
+        self.taxi_in.setSuffix(" min")
+        self.taxi_in.setButtonSymbols(QAbstractSpinBox.NoButtons)
+        self.taxi_in.setStyleSheet(self.get_spin_style())
+        
+        takeoff_label = QLabel("起飞:")
+        takeoff_label.setStyleSheet("color: white;")
+        landing_label = QLabel("落地:")
+        landing_label.setStyleSheet("color: white;")
+        taxi_layout.addWidget(takeoff_label)
+        taxi_layout.addWidget(self.taxi_out)
+        taxi_layout.addWidget(landing_label)
+        taxi_layout.addWidget(self.taxi_in)
+        taxi_layout.addStretch()
+        
+        time_layout.addRow(self.create_label("滑行时间:"), taxi_widget)
+        
+        form_layout.addRow(time_group)
+        
+        # 飞行参数分组
+        param_group = self.create_group_box("✈️ 飞行参数")
+        param_layout = QFormLayout(param_group)
+        param_layout.setSpacing(12)
         
         self.alt_spin = QSpinBox()
         self.alt_spin.setRange(0, 60000)
         self.alt_spin.setValue(30000)
         self.alt_spin.setSingleStep(1000)
+        self.alt_spin.setSuffix(" ft")
         self.alt_spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
-        layout.addRow("巡航高度 (ft):", self.alt_spin)
+        self.alt_spin.setStyleSheet(self.get_spin_style())
+        param_layout.addRow(self.create_label("巡航高度:"), self.alt_spin)
         
         self.ci_spin = QSpinBox()
         self.ci_spin.setRange(0, 999)
         self.ci_spin.setValue(30)
         self.ci_spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
-        layout.addRow("成本指数 (CI):", self.ci_spin)
+        self.ci_spin.setStyleSheet(self.get_spin_style())
+        param_layout.addRow(self.create_label("成本指数 (CI):"), self.ci_spin)
         
         self.pax_spin = QSpinBox()
         self.pax_spin.setRange(0, 800)
         self.pax_spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
-        layout.addRow("乘客数:", self.pax_spin)
-        
-        hbox_taxi = QHBoxLayout()
-        self.taxi_out = QSpinBox()
-        self.taxi_out.setSuffix(" min")
-        self.taxi_out.setButtonSymbols(QAbstractSpinBox.NoButtons)
-        self.taxi_in = QSpinBox()
-        self.taxi_in.setSuffix(" min")
-        self.taxi_in.setButtonSymbols(QAbstractSpinBox.NoButtons)
-        hbox_taxi.addWidget(QLabel("起飞滑行时间:"))
-        hbox_taxi.addWidget(self.taxi_out)
-        hbox_taxi.addWidget(QLabel("落地滑行时间:"))
-        hbox_taxi.addWidget(self.taxi_in)
-        layout.addRow("滑行时间:", hbox_taxi)
+        self.pax_spin.setStyleSheet(self.get_spin_style())
+        param_layout.addRow(self.create_label("乘客数:"), self.pax_spin)
         
         self.payload_spin = QSpinBox()
         self.payload_spin.setRange(0, 500000)
         self.payload_spin.setSuffix(" kg")
         self.payload_spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
-        layout.addRow("载荷:", self.payload_spin)
+        self.payload_spin.setStyleSheet(self.get_spin_style())
+        param_layout.addRow(self.create_label("载荷:"), self.payload_spin)
         
         self.extra_fuel = QSpinBox()
         self.extra_fuel.setSuffix(" min")
         self.extra_fuel.setButtonSymbols(QAbstractSpinBox.NoButtons)
-        layout.addRow("备用燃油:", self.extra_fuel)
+        self.extra_fuel.setStyleSheet(self.get_spin_style())
+        param_layout.addRow(self.create_label("备用燃油:"), self.extra_fuel)
+        
+        form_layout.addRow(param_group)
+        
+        # 航路分组
+        route_group = self.create_group_box("🗺️ 航路信息")
+        route_layout = QVBoxLayout(route_group)
         
         self.route_input = QTextEdit()
-        self.route_input.setMaximumHeight(80)
-        layout.addRow("飞行航路:", self.route_input)
-        
-        # 按钮
-        btn_box = QHBoxLayout()
-        save_btn = QPushButton("创建新航班")
-        save_btn.clicked.connect(self.accept)
-        cancel_btn = QPushButton("取消")
-        cancel_btn.clicked.connect(self.reject)
-        btn_box.addWidget(save_btn)
-        btn_box.addWidget(cancel_btn)
-        layout.addRow(btn_box)
-        
-        self.setStyleSheet("""
-            QDialog { background: #2c3e50; color: white; }
-            QLineEdit, QComboBox, QTimeEdit, QSpinBox, QTextEdit { 
-                padding: 5px; border-radius: 4px; border: 1px solid #555; background: #34495e; color: white; 
+        self.route_input.setPlaceholderText("输入飞行航路，如: DOTRA W56 SJG...")
+        self.route_input.setMaximumHeight(100)
+        self.route_input.setStyleSheet("""
+            QTextEdit { 
+                padding: 10px; 
+                border-radius: 8px; 
+                border: 1px solid rgba(255,255,255,0.2); 
+                background: rgba(255,255,255,0.1); 
+                color: white;
+                font-size: 13px;
             }
-            QPushButton { padding: 8px 20px; background: #27ae60; color: white; border: none; border-radius: 4px; font-weight: bold; }
-            QPushButton:hover { background: #2ecc71; }
-            QLabel { color: white; }
+            QTextEdit:focus { border: 1px solid #3498db; }
         """)
+        route_layout.addWidget(self.route_input)
+        
+        form_layout.addRow(route_group)
+        
+        scroll.setWidget(scroll_content)
+        main_layout.addWidget(scroll)
+        
+        # 按钮区域
+        btn_container = QWidget()
+        btn_layout = QHBoxLayout(btn_container)
+        btn_layout.setContentsMargins(0, 10, 0, 0)
+        btn_layout.setSpacing(15)
+        
+        cancel_btn = QPushButton("取消")
+        cancel_btn.setCursor(Qt.PointingHandCursor)
+        cancel_btn.setStyleSheet("""
+            QPushButton { 
+                padding: 12px 35px; 
+                background: rgba(127, 140, 141, 0.5); 
+                color: white; 
+                border: none; 
+                border-radius: 8px;
+                font-size: 14px;
+            }
+            QPushButton:hover { background: rgba(127, 140, 141, 0.8); }
+        """)
+        cancel_btn.clicked.connect(self.reject)
+        
+        save_btn = QPushButton("🚀 创建航班")
+        save_btn.setCursor(Qt.PointingHandCursor)
+        save_btn.setStyleSheet("""
+            QPushButton { 
+                padding: 12px 35px; 
+                background: rgba(46, 204, 113, 0.8); 
+                color: white; 
+                border: none; 
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background: #2ecc71; }
+        """)
+        save_btn.clicked.connect(self.accept)
+        
+        btn_layout.addStretch()
+        btn_layout.addWidget(cancel_btn)
+        btn_layout.addWidget(save_btn)
+        
+        main_layout.addWidget(btn_container)
+        
+        # 对话框样式
+        self.setStyleSheet("""
+            QDialog { 
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+                    stop:0 #1a1a2e, stop:1 #16213e); 
+            }
+        """)
+    
+    def create_group_box(self, title):
+        """创建分组框"""
+        group = QGroupBox(title)
+        group.setStyleSheet("""
+            QGroupBox {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border: 1px solid rgba(255,255,255,0.15);
+                border-radius: 10px;
+                margin-top: 15px;
+                padding-top: 15px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 10px;
+            }
+        """)
+        return group
+    
+    def create_label(self, text):
+        """创建表单标签"""
+        label = QLabel(text)
+        label.setStyleSheet("color: rgba(255,255,255,0.85); font-size: 13px;")
+        return label
+    
+    def get_input_style(self):
+        """获取输入框样式"""
+        return """
+            QLineEdit { 
+                padding: 10px; 
+                border-radius: 8px; 
+                border: 1px solid rgba(255,255,255,0.2); 
+                background: rgba(255,255,255,0.1); 
+                color: white;
+                font-size: 13px;
+            }
+            QLineEdit:focus { border: 1px solid #3498db; }
+        """
+    
+    def get_combo_style(self):
+        """获取下拉框样式"""
+        return """
+            QComboBox { 
+                padding: 10px; 
+                border-radius: 8px; 
+                border: 1px solid rgba(255,255,255,0.2); 
+                background: rgba(255,255,255,0.1); 
+                color: white;
+                font-size: 13px;
+            }
+            QComboBox:focus { border: 1px solid #3498db; }
+            QComboBox::drop-down {
+                border: none;
+                width: 30px;
+            }
+            QComboBox QAbstractItemView {
+                background: #2c3e50;
+                color: white;
+                selection-background-color: #3498db;
+            }
+        """
+    
+    def get_time_style(self):
+        """获取时间选择器样式"""
+        return """
+            QTimeEdit { 
+                padding: 10px; 
+                border-radius: 8px; 
+                border: 1px solid rgba(255,255,255,0.2); 
+                background: rgba(255,255,255,0.1); 
+                color: white;
+                font-size: 13px;
+            }
+            QTimeEdit:focus { border: 1px solid #3498db; }
+        """
+    
+    def get_spin_style(self):
+        """获取数字输入框样式"""
+        return """
+            QSpinBox { 
+                padding: 10px; 
+                border-radius: 8px; 
+                border: 1px solid rgba(255,255,255,0.2); 
+                background: rgba(255,255,255,0.1); 
+                color: white;
+                font-size: 13px;
+            }
+            QSpinBox:focus { border: 1px solid #3498db; }
+        """
 
     def get_data(self):
         ac_data = self.aircraft_combo.currentData()
@@ -485,54 +984,255 @@ class NewFlightDialog(QDialog):
         }
 
 class FlightDetailsDialog(QDialog):
-    def __init__(self, flight, parent=None):
+    # 定义状态变更信号
+    status_changed = Signal(str)
+    
+    def __init__(self, flight, parent=None, editable=False):
         super().__init__(parent)
+        self.flight = flight
+        self.editable = editable
         self.setWindowTitle(f"航班详情 - {flight.get('callsign')}")
-        self.resize(400, 500)
+        self.setFixedSize(420, 600)
         
-        layout = QVBoxLayout(self)
+        # 主布局
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(15)
         
         # 标题
-        title = QLabel(f"{flight.get('dep')} ✈ {flight.get('arr')}")
+        title = QLabel("🛫 航班详情")
+        title.setFont(QFont("Microsoft YaHei", 18, QFont.Bold))
+        title.setStyleSheet("color: white; margin-bottom: 5px;")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 24px; font-weight: bold; color: #3498db; margin: 10px;")
-        layout.addWidget(title)
+        main_layout.addWidget(title)
         
-        # 详细信息
-        form = QFormLayout()
-        form.setSpacing(15)
+        # 航段信息
+        route_title = QLabel(f"{flight.get('dep')} ✈ {flight.get('arr')}")
+        route_title.setAlignment(Qt.AlignCenter)
+        route_title.setStyleSheet("font-size: 22px; font-weight: bold; color: #3498db; margin-bottom: 10px;")
+        main_layout.addWidget(route_title)
         
-        def add_row(label, value):
-            lbl = QLabel(label)
-            val = QLabel(str(value))
-            lbl.setStyleSheet("color: #bdc3c7; font-weight: bold;")
-            val.setStyleSheet("color: white;")
-            form.addRow(lbl, val)
+        # 分隔线
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setStyleSheet("background: rgba(255,255,255,0.2);")
+        line.setFixedHeight(1)
+        main_layout.addWidget(line)
+        
+        # 滚动区域
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("""
+            QScrollArea { border: none; background: transparent; }
+            QScrollBar:vertical {
+                background: rgba(0, 0, 0, 0.3);
+                width: 8px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(255, 255, 255, 0.3);
+            }
+        """)
+        
+        scroll_content = QWidget()
+        scroll_content.setStyleSheet("background: transparent;")
+        content_layout = QVBoxLayout(scroll_content)
+        content_layout.setContentsMargins(0, 10, 0, 10)
+        content_layout.setSpacing(15)
+        
+        # 状态管理分组（仅在可编辑模式下显示）
+        if editable:
+            status_group = self.create_group_box("📍 航班状态")
+            status_layout = QVBoxLayout(status_group)
             
-        add_row("航班号:", flight.get('callsign'))
-        add_row("日期:", flight.get('date'))
-        add_row("机型:", flight.get('aircraft', {}).get('type', 'Unknown'))
-        add_row("注册号:", flight.get('aircraft', {}).get('reg', 'Unknown'))
-        add_row("计划起飞:", flight.get('etd'))
-        add_row("计划落地:", flight.get('eta', '--:--'))
-        add_row("巡航高度:", f"{flight.get('altitude')} ft")
-        add_row("乘客:", flight.get('pax'))
-        add_row("载荷:", f"{flight.get('payload')} kg")
-        add_row("航路:", flight.get('route'))
+            # 当前状态显示
+            current_status = flight.get('status', '计划')
+            self.status_label = QLabel(f"当前状态: {current_status}")
+            self.status_label.setStyleSheet("""
+                color: #2ecc71; 
+                font-size: 14px; 
+                font-weight: bold;
+                padding: 8px;
+                background: rgba(46, 204, 113, 0.1);
+                border-radius: 6px;
+            """)
+            status_layout.addWidget(self.status_label)
+            
+            # 状态按钮组
+            btn_widget = QWidget()
+            btn_layout = QHBoxLayout(btn_widget)
+            btn_layout.setContentsMargins(0, 10, 0, 0)
+            btn_layout.setSpacing(8)
+            
+            statuses = [
+                ("推出", "#e67e22"),
+                ("起飞", "#f39c12"),
+                ("巡航", "#3498db"),
+                ("下降", "#9b59b6"),
+                ("落地", "#2ecc71")
+            ]
+            
+            for status, color in statuses:
+                btn = QPushButton(status)
+                btn.setCursor(Qt.PointingHandCursor)
+                btn.setStyleSheet(f"""
+                    QPushButton {{
+                        padding: 8px 12px;
+                        background: {color};
+                        color: white;
+                        border: none;
+                        border-radius: 5px;
+                        font-size: 12px;
+                        font-weight: bold;
+                    }}
+                    QPushButton:hover {{
+                        background: {color}dd;
+                    }}
+                """)
+                btn.clicked.connect(lambda checked, s=status: self.on_status_change(s))
+                btn_layout.addWidget(btn)
+            
+            status_layout.addWidget(btn_widget)
+            content_layout.addWidget(status_group)
         
-        layout.addLayout(form)
+        # 基础信息分组
+        basic_group = self.create_group_box("📋 基础信息")
+        basic_form = QFormLayout(basic_group)
+        basic_form.setSpacing(10)
         
-        close_btn = QPushButton("关闭")
+        self.add_detail_row(basic_form, "航班号:", flight.get('callsign'))
+        self.add_detail_row(basic_form, "日期:", flight.get('date'))
+        self.add_detail_row(basic_form, "机型:", flight.get('aircraft', {}).get('type', 'Unknown'))
+        self.add_detail_row(basic_form, "注册号:", flight.get('aircraft', {}).get('reg', 'Unknown'))
+        if not editable:
+            self.add_detail_row(basic_form, "状态:", flight.get('status', '计划'))
+        
+        content_layout.addWidget(basic_group)
+        
+        # 时间信息分组
+        time_group = self.create_group_box("⏰ 时间信息")
+        time_form = QFormLayout(time_group)
+        time_form.setSpacing(10)
+        
+        self.add_detail_row(time_form, "计划起飞 (ETD):", flight.get('etd'))
+        self.add_detail_row(time_form, "计划落地 (ETA):", flight.get('eta', '--:--'))
+        
+        content_layout.addWidget(time_group)
+        
+        # 飞行参数分组
+        param_group = self.create_group_box("✈️ 飞行参数")
+        param_form = QFormLayout(param_group)
+        param_form.setSpacing(10)
+        
+        self.add_detail_row(param_form, "巡航高度:", f"{flight.get('altitude')} ft")
+        self.add_detail_row(param_form, "成本指数 (CI):", flight.get('ci', 'N/A'))
+        self.add_detail_row(param_form, "乘客数:", flight.get('pax'))
+        self.add_detail_row(param_form, "载荷:", f"{flight.get('payload')} kg")
+        self.add_detail_row(param_form, "备用燃油:", f"{flight.get('extra_fuel', 0)} min")
+        
+        content_layout.addWidget(param_group)
+        
+        # 航路信息分组
+        route_group = self.create_group_box("🗺️ 航路信息")
+        route_layout = QVBoxLayout(route_group)
+        
+        route_text = QTextEdit()
+        route_text.setPlainText(flight.get('route', 'N/A'))
+        route_text.setReadOnly(True)
+        route_text.setMaximumHeight(80)
+        route_text.setStyleSheet("""
+            QTextEdit { 
+                padding: 10px; 
+                border-radius: 6px; 
+                border: 1px solid rgba(255,255,255,0.2); 
+                background: rgba(255,255,255,0.05); 
+                color: white;
+                font-size: 12px;
+            }
+        """)
+        route_layout.addWidget(route_text)
+        
+        content_layout.addWidget(route_group)
+        content_layout.addStretch()
+        
+        scroll.setWidget(scroll_content)
+        main_layout.addWidget(scroll)
+        
+        # 关闭按钮
+        close_btn = QPushButton("✓ 关闭")
+        close_btn.setCursor(Qt.PointingHandCursor)
         close_btn.clicked.connect(self.accept)
-        close_btn.setStyleSheet("margin-top: 20px; padding: 8px; background: #34495e; color: white; border-radius: 4px;")
-        layout.addWidget(close_btn)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                margin-top: 10px; 
+                padding: 10px 30px; 
+                background: rgba(52, 152, 219, 0.8); 
+                color: white; 
+                border: none; 
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover { background: #3498db; }
+        """)
         
-        self.setStyleSheet("QDialog { background: #2c3e50; }")
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch()
+        btn_layout.addWidget(close_btn)
+        btn_layout.addStretch()
+        main_layout.addLayout(btn_layout)
+        
+        # 对话框样式
+        self.setStyleSheet("""
+            QDialog { 
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+                    stop:0 #1a1a2e, stop:1 #16213e); 
+            }
+            QLabel { color: white; }
+        """)
+    
+    def on_status_change(self, new_status):
+        """处理状态变更"""
+        self.status_label.setText(f"当前状态: {new_status}")
+        self.status_changed.emit(new_status)
+    
+    def create_group_box(self, title):
+        """创建分组框"""
+        group = QGroupBox(title)
+        group.setStyleSheet("""
+            QGroupBox {
+                color: white;
+                font-size: 13px;
+                font-weight: bold;
+                border: 1px solid rgba(255,255,255,0.15);
+                border-radius: 8px;
+                margin-top: 12px;
+                padding-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 8px;
+            }
+        """)
+        return group
+    
+    def add_detail_row(self, form_layout, label, value):
+        """添加详情行"""
+        lbl = QLabel(label)
+        lbl.setStyleSheet("color: rgba(255,255,255,0.7); font-size: 12px;")
+        val = QLabel(str(value))
+        val.setStyleSheet("color: white; font-size: 13px; font-weight: 500;")
+        form_layout.addRow(lbl, val)
 
 class ISFPApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("ISFP 云际模拟飞行连飞平台")
+        self.setWindowTitle("ISFP Connect")
         # 设置窗口图标
         self.setWindowIcon(QIcon("assets/logo.png"))
         # 设置 16:9 比例 (例如 1280x720)
@@ -545,9 +1245,12 @@ class ISFPApp(QMainWindow):
         self.user_data = None
         
         # 初始化设置 - 使用本地 ini 文件存储，不使用注册表
-        # 将配置保存在应用同级目录下的 config.ini 中
+        # 将配置保存在 data 文件夹下的 config.ini 中
         import os
-        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.ini")
+        data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+        config_path = os.path.join(data_dir, "config.ini")
         self.settings = QSettings(config_path, QSettings.IniFormat)
         
         # 签派数据管理器
@@ -610,12 +1313,21 @@ class ISFPApp(QMainWindow):
         self.bg_label = QLabel(self)
         self.bg_label.setGeometry(0, 0, self.win_width, self.win_height)
         
-        # 保存原始 Pixmap 以便后续缩放
-        self.bg_pixmap = QPixmap("assets/background.png")
-        if not self.bg_pixmap.isNull():
-            self.bg_label.setPixmap(self.bg_pixmap.scaled(self.win_width, self.win_height, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation))
+        # 检查是否有自定义背景
+        custom_bg = self.settings.value("custom_bg_path", "")
+        if custom_bg and os.path.exists(custom_bg):
+            # 使用自定义背景
+            self.bg_pixmap = QPixmap(custom_bg)
+            if not self.bg_pixmap.isNull():
+                self.bg_label.setPixmap(self.bg_pixmap.scaled(self.win_width, self.win_height, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation))
         else:
-            self.bg_label.setStyleSheet("background-color: #1a1a1a;")
+            # 使用默认背景
+            default_bg = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "background.png")
+            self.bg_pixmap = QPixmap(default_bg)
+            if not self.bg_pixmap.isNull():
+                self.bg_label.setPixmap(self.bg_pixmap.scaled(self.win_width, self.win_height, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation))
+            else:
+                self.bg_label.setStyleSheet("background-color: #1a1a1a;")
 
         # 【核心优化】添加黑色半透明遮罩层，确保背景不会干扰文字阅读
         self.bg_overlay = QFrame(self)
@@ -761,6 +1473,7 @@ class ISFPApp(QMainWindow):
         self.stacked_widget.addWidget(self.create_activities_tab())  # 6
         self.stacked_widget.addWidget(self.create_ticket_tab())      # 7
         self.stacked_widget.addWidget(self.create_account_tab())     # 8
+        self.stacked_widget.addWidget(self.create_settings_tab())    # 9
         
         self.content_layout.addWidget(self.stacked_widget, stretch=1)
         
@@ -836,6 +1549,7 @@ class ISFPApp(QMainWindow):
             ("📅", "活动", 6),
             ("🎫", "工单", 7),
             ("👤", "账户", 8),
+            ("⚙", "设置", 9),
         ]
         
         self.nav_buttons = []
@@ -972,6 +1686,12 @@ class ISFPApp(QMainWindow):
 
     def switch_page(self, index):
         """切换页面"""
+        # 检查是否需要登录（所有页面都需要登录，除了登录页本身）
+        protected_pages = [0, 1, 2, 3, 4, 5, 6, 7, 9]  # 首页、气象、地图、排行、签派、计划、活动、工单、设置
+        if index in protected_pages and not self.auth_token:
+            self.show_notification("请先登录")
+            index = 8  # 跳转到账户/登录页面
+        
         # 更新按钮状态
         for i, btn in enumerate(self.nav_buttons):
             btn.setChecked(i == index)
@@ -980,7 +1700,7 @@ class ISFPApp(QMainWindow):
         self.stacked_widget.setCurrentIndex(index)
         
         # 更新标题
-        titles = ["首页", "气象", "地图", "排行", "签派", "计划", "活动", "工单", "账户"]
+        titles = ["首页", "气象", "地图", "排行", "签派", "计划", "活动", "工单", "账户", "设置"]
         self.page_title.setText(titles[index])
         
         # 自动刷新数据
@@ -1102,7 +1822,7 @@ class ISFPApp(QMainWindow):
         self.right_spacer.setFixedWidth(0)
         
         # 按钮只显示图标
-        nav_items = ["🏠", "🌤", "🗺", "🏆", "✈", "📋", "📅", "🎫", "👤"]
+        nav_items = ["🏠", "🌤", "🗺", "🏆", "✈", "📋", "📅", "🎫", "👤", "⚙"]
         for i, btn in enumerate(self.nav_buttons):
             btn.setText(nav_items[i])
             btn.setStyleSheet("""
@@ -1166,6 +1886,7 @@ class ISFPApp(QMainWindow):
             ("📅", "活动"),
             ("🎫", "工单"),
             ("👤", "账户"),
+            ("⚙", "设置"),
         ]
         for i, btn in enumerate(self.nav_buttons):
             btn.setText(f"{nav_items[i][0]}  {nav_items[i][1]}")
@@ -1572,12 +2293,25 @@ class ISFPApp(QMainWindow):
         # 加载历史
         self.flight_history_list.clear()
         history = self.dispatch_manager.history
+        
+        # 状态颜色映射
+        status_colors = {
+            '计划': '#95a5a6',
+            '推出': '#e67e22',
+            '起飞': '#f39c12',
+            '巡航': '#3498db',
+            '下降': '#9b59b6',
+            '落地': '#2ecc71'
+        }
+        
         for f in history:
-            # 格式化显示：日期 | 航班号 | 起降 | 机型
-            text = f"📅 {f['date']}   ✈ {f['callsign']}\n" \
-                   f"🛫 {f['dep']} ➔ 🛬 {f['arr']}   🛩️ {f['aircraft']['type']}"
+            status = f.get('status', '计划')
+            status_color = status_colors.get(status, '#95a5a6')
+            
+            # 格式化显示：日期 | 航班号 | 起降 | 机型 | 状态
+            text = f"📅 {f['date']}   ✈ {f['callsign']}\n🛫 {f['dep']} ➔ 🛬 {f['arr']}   🛩️ {f['aircraft']['type']}   [{status}]"
             item = QListWidgetItem(text)
-            item.setForeground(Qt.white)
+            item.setForeground(QColor(status_color))
             item.setFont(QFont("Consolas", 10))
             item.setData(Qt.UserRole, f) # 存储完整数据以便点击查看
             self.flight_history_list.addItem(item)
@@ -1647,22 +2381,27 @@ class ISFPApp(QMainWindow):
                  # 简单起见，如果没有图，就尝试获取
                  reg = new_data['reg']
                  def on_photo_ready(res):
+                    xz_logger = logging.getLogger('ISFP-Connect.XZPhotos')
                     if isinstance(res, dict) and res.get('success') and res['data'].get('photo_found'):
                         img_url = res['data'].get('photo_image_url')
                         if img_url:
                             try:
+                                xz_logger.info(f"[图片下载] 开始下载 - 注册号: {reg}, URL: {img_url}")
                                 headers = {
                                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                                 }
                                 import requests
                                 r = requests.get(img_url, headers=headers, timeout=15)
+                                xz_logger.info(f"[图片下载] 响应状态码: {r.status_code}")
                                 if r.status_code == 200:
                                     img_dir = os.path.join(self.dispatch_manager.data_dir, "images")
                                     if not os.path.exists(img_dir):
                                         os.makedirs(img_dir)
+                                        xz_logger.info(f"[图片下载] 创建图片目录: {img_dir}")
                                     img_path = os.path.join(img_dir, f"{reg}.jpg")
                                     with open(img_path, 'wb') as f:
                                         f.write(r.content)
+                                    xz_logger.info(f"[图片下载] 图片保存成功 - 路径: {img_path}, 大小: {len(r.content)} bytes")
                                     
                                     # 更新数据 (这里稍微复杂，因为我们要更新的是已经修改后的数据)
                                     # 重新从 hangar 中找
@@ -1672,8 +2411,13 @@ class ISFPApp(QMainWindow):
                                             break
                                     self.dispatch_manager.save_json(self.dispatch_manager.hangar_file, self.dispatch_manager.hangar)
                                     self.load_dispatch_data()
+                                    xz_logger.info(f"[图片下载] 航空器数据已更新 - 注册号: {reg}")
+                                else:
+                                    xz_logger.warning(f"[图片下载] 下载失败 - 状态码: {r.status_code}")
                             except Exception as e:
-                                print(f"下载图片失败: {e}")
+                                xz_logger.error(f"[图片下载] 异常 - 注册号: {reg}, 错误: {str(e)}")
+                    else:
+                        xz_logger.info(f"[图片下载] 未找到图片 - 注册号: {reg}")
 
                  self.auto_photo_thread = XZPhotosAPIThread(reg)
                  self.auto_photo_thread.finished.connect(on_photo_ready)
@@ -1702,23 +2446,28 @@ class ISFPApp(QMainWindow):
                 # 自动获取图片
                 reg = data['reg']
                 def on_photo_ready(res):
+                    xz_logger = logging.getLogger('ISFP-Connect.XZPhotos')
                     if isinstance(res, dict) and res.get('success') and res['data'].get('photo_found'):
                         img_url = res['data'].get('photo_image_url')
                         if img_url:
                             # 下载图片并保存到本地
                             try:
+                                xz_logger.info(f"[图片下载] 开始下载 - 注册号: {reg}, URL: {img_url}")
                                 headers = {
                                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
                                 }
                                 import requests
                                 r = requests.get(img_url, headers=headers, timeout=15)
+                                xz_logger.info(f"[图片下载] 响应状态码: {r.status_code}")
                                 if r.status_code == 200:
                                     img_dir = os.path.join(self.dispatch_manager.data_dir, "images")
                                     if not os.path.exists(img_dir):
                                         os.makedirs(img_dir)
+                                        xz_logger.info(f"[图片下载] 创建图片目录: {img_dir}")
                                     img_path = os.path.join(img_dir, f"{reg}.jpg")
                                     with open(img_path, 'wb') as f:
                                         f.write(r.content)
+                                    xz_logger.info(f"[图片下载] 图片保存成功 - 路径: {img_path}, 大小: {len(r.content)} bytes")
                                     
                                     # 更新数据
                                     for ac in self.dispatch_manager.hangar:
@@ -1727,8 +2476,15 @@ class ISFPApp(QMainWindow):
                                             break
                                     self.dispatch_manager.save_json(self.dispatch_manager.hangar_file, self.dispatch_manager.hangar)
                                     self.load_dispatch_data() # 刷新显示
+                                    xz_logger.info(f"[图片下载] 航空器数据已更新 - 注册号: {reg}")
+                                else:
+                                    xz_logger.warning(f"[图片下载] 下载失败 - 状态码: {r.status_code}")
                             except Exception as e:
-                                print(f"下载图片失败: {e}")
+                                xz_logger.error(f"[图片下载] 异常 - 注册号: {reg}, 错误: {str(e)}")
+                        else:
+                            xz_logger.info(f"[图片下载] 未找到图片 - 注册号: {reg}")
+                    else:
+                        xz_logger.info(f"[图片下载] API未返回图片 - 注册号: {reg}")
 
                 self.auto_photo_thread = XZPhotosAPIThread(reg)
                 self.auto_photo_thread.finished.connect(on_photo_ready)
@@ -1751,8 +2507,15 @@ class ISFPApp(QMainWindow):
 
     def show_flight_details(self, item):
         flight_data = item.data(Qt.UserRole)
-        dialog = FlightDetailsDialog(flight_data, self)
+        dialog = FlightDetailsDialog(flight_data, self, editable=True)
+        dialog.status_changed.connect(lambda status: self.on_flight_status_changed(flight_data, status))
         dialog.exec()
+
+    def on_flight_status_changed(self, flight_data, new_status):
+        """处理航班状态变更"""
+        if self.dispatch_manager.update_flight_status(flight_data, new_status):
+            self.load_dispatch_data()
+            logger.info(f"航班 {flight_data.get('callsign')} 状态更新为: {new_status}")
 
     def create_map_tab(self):
         widget = QWidget()
@@ -1942,6 +2705,7 @@ class ISFPApp(QMainWindow):
                             <div style='font-family: Consolas, sans-serif; font-size: 13px;'>
                                 <b style='color: #3498db; font-size: 15px;'>${p.callsign}</b><br>
                                 <hr style='border: 0; border-top: 1px solid #555; margin: 5px 0;'>
+                                👤 CID: <span style='color: #9b59b6;'>${p.cid || 'N/A'}</span><br>
                                 ✈ 机型: <span style='color: #2ecc71;'>${p.aircraft || 'Unknown'}</span><br>
                                 📏 高度: <span style='color: #f1c40f;'>${p.altitude} ft</span><br>
                                 🚀 速度: ${p.ground_speed} kts<br>
@@ -2140,9 +2904,35 @@ class ISFPApp(QMainWindow):
         return widget
     
     def toggle_online_panel(self):
-        """切换在线机组列表的显示/隐藏"""
+        """切换在线机组列表的显示/隐藏（带动画）"""
         self.online_panel_visible = not self.online_panel_visible
-        self.online_panel.setVisible(self.online_panel_visible)
+        
+        # 获取当前宽度和目标宽度
+        start_width = self.online_panel.width()
+        end_width = 300 if self.online_panel_visible else 0
+        
+        # 创建动画
+        self._online_panel_anim = QPropertyAnimation(self.online_panel, b"minimumWidth")
+        self._online_panel_anim.setDuration(250)
+        self._online_panel_anim.setStartValue(start_width)
+        self._online_panel_anim.setEndValue(end_width)
+        self._online_panel_anim.setEasingCurve(QEasingCurve.InOutCubic)
+        
+        # 同时动画最大宽度
+        self._online_panel_max_anim = QPropertyAnimation(self.online_panel, b"maximumWidth")
+        self._online_panel_max_anim.setDuration(250)
+        self._online_panel_max_anim.setStartValue(start_width)
+        self._online_panel_max_anim.setEndValue(end_width)
+        self._online_panel_max_anim.setEasingCurve(QEasingCurve.InOutCubic)
+        
+        # 更新按钮文字
+        if self.online_panel_visible:
+            self.toggle_btn.setText("☰ 隐藏")
+        else:
+            self.toggle_btn.setText("☰ 在线机组")
+        
+        self._online_panel_anim.start()
+        self._online_panel_max_anim.start()
 
     def on_pilot_item_clicked(self, item):
         """点击在线机组列表项时在地图上定位"""
@@ -2327,11 +3117,23 @@ class ISFPApp(QMainWindow):
         return widget
 
     def load_activities(self):
-        # 移除旧的线程加载器逻辑
+        # 如果有正在进行的请求，先终止它
+        if hasattr(self, 'activities_thread') and self.activities_thread and self.activities_thread.isRunning():
+            self.activities_thread.terminate()
+            self.activities_thread.wait(1000)
+        
+        # 清理旧的活动卡片和错误信息
+        # 保留最后的 stretch 项，移除其他所有 widget
         while self.activities_layout.count() > 1:
             item = self.activities_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+            if item and item.widget():
+                widget = item.widget()
+                widget.setParent(None)
+                widget.deleteLater()
+        
+        # 强制处理事件，确保删除操作立即生效
+        from PySide6.QtCore import QCoreApplication
+        QCoreApplication.processEvents()
         
         headers = {}
         if self.auth_token:
@@ -2497,12 +3299,21 @@ class ISFPApp(QMainWindow):
         reply = self.nam.get(req)
         
         def on_finished():
+            # 检查 label 是否仍然有效（可能已被删除）
+            try:
+                label_width = label.width()
+                label_height = label.height()
+            except RuntimeError:
+                # QLabel 已被删除，忽略此次回调
+                reply.deleteLater()
+                return
+            
             if reply.error() == QNetworkReply.NoError:
                 img_data = reply.readAll()
                 image = QImage()
                 if image.loadFromData(img_data):
                     # 判断是头像(方形)还是活动封面(矩形)
-                    is_avatar = label.width() == label.height()
+                    is_avatar = label_width == label_height
                     
                     if is_avatar:
                         # 头像：先裁剪为正方形，然后按 Expanding 模式缩放填满 label
@@ -3126,6 +3937,8 @@ class ISFPApp(QMainWindow):
             
             self.update_account_ui()
             self.show_notification("登录成功！")
+            # 登录后跳转到首页
+            self.switch_page(0)
             # 登录后刷新活动和工单
             self.load_activities()
             self.load_tickets()
@@ -3262,6 +4075,437 @@ class ISFPApp(QMainWindow):
         
         dialog.exec()
 
+    def create_settings_tab(self):
+        """创建设置页面"""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(20)
+        
+        # 标题
+        title = QLabel("⚙ 设置")
+        title.setFont(QFont("Microsoft YaHei", 24, QFont.Bold))
+        title.setStyleSheet("color: white;")
+        layout.addWidget(title)
+        
+        # 滚动区域
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("""
+            QScrollArea { 
+                border: none; 
+                background: transparent; 
+            }
+            QScrollBar:vertical {
+                background: rgba(0, 0, 0, 0.3);
+                width: 8px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 4px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(255, 255, 255, 0.3);
+            }
+        """)
+        
+        scroll_content = QWidget()
+        scroll_content.setStyleSheet("background: transparent;")
+        scroll_layout = QVBoxLayout(scroll_content)
+        scroll_layout.setSpacing(20)
+        
+        # ===== 1. 日志设置 =====
+        log_group = QGroupBox("📋 日志设置")
+        log_group.setStyleSheet("""
+            QGroupBox {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 10px;
+                margin-top: 15px;
+                padding-top: 15px;
+                background: rgba(0, 0, 0, 0.2);
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 10px;
+            }
+        """)
+        log_layout = QVBoxLayout(log_group)
+        
+        self.log_switch = QCheckBox("启用日志文件记录")
+        self.log_switch.setChecked(self.settings.value("log_enabled", True, type=bool))
+        self.log_switch.setStyleSheet("""
+            QCheckBox {
+                color: #bdc3c7;
+                font-size: 13px;
+                spacing: 8px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                border: 2px solid rgba(255,255,255,0.3);
+                background: rgba(0,0,0,0.3);
+            }
+            QCheckBox::indicator:checked {
+                background: #3498db;
+                border: 2px solid #3498db;
+                image: none;
+            }
+        """)
+        self.log_switch.stateChanged.connect(self.on_log_switch_changed)
+        log_layout.addWidget(self.log_switch)
+        
+        log_info = QLabel("日志文件位置: logs/main.log")
+        log_info.setStyleSheet("color: #7f8c8d; font-size: 11px;")
+        log_layout.addWidget(log_info)
+        
+        # 清空日志按钮
+        clear_log_btn = QPushButton("🗑 清空日志")
+        clear_log_btn.setStyleSheet("""
+            QPushButton {
+                background: rgba(192, 57, 43, 0.8);
+                color: white;
+                padding: 8px 16px;
+                border-radius: 6px;
+                font-size: 12px;
+                border: none;
+                margin-top: 10px;
+            }
+            QPushButton:hover {
+                background: #e74c3c;
+            }
+        """)
+        clear_log_btn.clicked.connect(self.on_clear_log)
+        log_layout.addWidget(clear_log_btn)
+        
+        scroll_layout.addWidget(log_group)
+        
+        # ===== 2. 账号密码设置 =====
+        account_group = QGroupBox("👤 账号设置")
+        account_group.setStyleSheet("""
+            QGroupBox {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 10px;
+                margin-top: 15px;
+                padding-top: 15px;
+                background: rgba(0, 0, 0, 0.2);
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 10px;
+            }
+            QLabel {
+                color: #bdc3c7;
+                font-size: 13px;
+            }
+        """)
+        account_layout = QFormLayout(account_group)
+        account_layout.setSpacing(15)
+        account_layout.setLabelAlignment(Qt.AlignLeft)
+        account_layout.setFieldGrowthPolicy(QFormLayout.ExpandingFieldsGrow)
+        
+        # 当前账号显示
+        current_user = self.settings.value("username", "未保存")
+        self.current_user_label = QLabel(f"当前保存的账号: {current_user}")
+        self.current_user_label.setStyleSheet("color: #bdc3c7; font-size: 13px;")
+        account_layout.addRow(self.current_user_label)
+        
+        # 新用户名
+        self.new_username_input = QLineEdit()
+        self.new_username_input.setPlaceholderText("输入新用户名")
+        self.new_username_input.setStyleSheet("""
+            QLineEdit {
+                padding: 10px;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 6px;
+                color: white;
+                font-size: 13px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #3498db;
+                background: rgba(255,255,255,0.1);
+            }
+        """)
+        account_layout.addRow("新用户名:", self.new_username_input)
+        
+        # 新密码
+        self.new_password_input = QLineEdit()
+        self.new_password_input.setPlaceholderText("输入新密码")
+        self.new_password_input.setEchoMode(QLineEdit.Password)
+        self.new_password_input.setStyleSheet("""
+            QLineEdit {
+                padding: 10px;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 6px;
+                color: white;
+                font-size: 13px;
+            }
+            QLineEdit:focus {
+                border: 1px solid #3498db;
+                background: rgba(255,255,255,0.1);
+            }
+        """)
+        account_layout.addRow("新密码:", self.new_password_input)
+        
+        # 保存按钮
+        save_account_btn = QPushButton("💾 保存账号密码")
+        save_account_btn.setStyleSheet("""
+            QPushButton {
+                background: #3498db;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                border: none;
+            }
+            QPushButton:hover {
+                background: #2980b9;
+            }
+        """)
+        save_account_btn.clicked.connect(self.on_save_account_settings)
+        account_layout.addRow(save_account_btn)
+        
+        # 提示文字
+        account_tip = QLabel("⚠️ 修改后需要重新登录才能生效")
+        account_tip.setStyleSheet("color: #e74c3c; font-size: 11px;")
+        account_layout.addRow(account_tip)
+        
+        scroll_layout.addWidget(account_group)
+        
+        # ===== 3. 背景图设置 =====
+        bg_group = QGroupBox("🖼 背景设置")
+        bg_group.setStyleSheet("""
+            QGroupBox {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 10px;
+                margin-top: 15px;
+                padding-top: 15px;
+                background: rgba(0, 0, 0, 0.2);
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 10px;
+            }
+        """)
+        bg_layout = QVBoxLayout(bg_group)
+        
+        # 当前背景预览
+        self.bg_preview_label = QLabel("当前背景: 默认")
+        self.bg_preview_label.setStyleSheet("color: #bdc3c7; font-size: 13px;")
+        bg_layout.addWidget(self.bg_preview_label)
+        
+        # 预览图
+        self.bg_preview = QLabel()
+        self.bg_preview.setFixedSize(300, 150)
+        self.bg_preview.setStyleSheet("""
+            QLabel {
+                background: rgba(0,0,0,0.3);
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 8px;
+            }
+        """)
+        self.bg_preview.setAlignment(Qt.AlignCenter)
+        bg_layout.addWidget(self.bg_preview)
+        
+        # 更新预览
+        self.update_bg_preview()
+        
+        # 按钮区域
+        bg_btn_layout = QHBoxLayout()
+        
+        select_bg_btn = QPushButton("📁 选择图片")
+        select_bg_btn.setStyleSheet("""
+            QPushButton {
+                background: #27ae60;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                border: none;
+            }
+            QPushButton:hover {
+                background: #2ecc71;
+            }
+        """)
+        select_bg_btn.clicked.connect(self.on_select_background)
+        bg_btn_layout.addWidget(select_bg_btn)
+        
+        reset_bg_btn = QPushButton("🔄 恢复默认")
+        reset_bg_btn.setStyleSheet("""
+            QPushButton {
+                background: #7f8c8d;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                border: none;
+            }
+            QPushButton:hover {
+                background: #95a5a6;
+            }
+        """)
+        reset_bg_btn.clicked.connect(self.on_reset_background)
+        bg_btn_layout.addWidget(reset_bg_btn)
+        
+        bg_layout.addLayout(bg_btn_layout)
+        
+        # 提示
+        bg_tip = QLabel("支持 JPG、PNG 格式，建议尺寸 1920x1080")
+        bg_tip.setStyleSheet("color: #7f8c8d; font-size: 11px;")
+        bg_layout.addWidget(bg_tip)
+        
+        scroll_layout.addWidget(bg_group)
+        
+        scroll_layout.addStretch()
+        scroll.setWidget(scroll_content)
+        layout.addWidget(scroll)
+        
+        return widget
+
+    def on_log_switch_changed(self, state):
+        """日志开关状态改变"""
+        enabled = bool(state)
+        self.settings.setValue("log_enabled", enabled)
+        
+        # 更新日志级别
+        root_logger = logging.getLogger()
+        if enabled:
+            root_logger.setLevel(logging.DEBUG)
+            self.show_notification("日志记录已启用")
+        else:
+            root_logger.setLevel(logging.CRITICAL + 1)  # 禁用所有日志
+            self.show_notification("日志记录已禁用")
+
+    def on_save_account_settings(self):
+        """保存账号密码设置"""
+        new_username = self.new_username_input.text().strip()
+        new_password = self.new_password_input.text().strip()
+        
+        if not new_username and not new_password:
+            self.show_notification("请输入新的用户名或密码")
+            return
+        
+        # 保存新设置
+        if new_username:
+            self.settings.setValue("username", new_username)
+        if new_password:
+            self.settings.setValue("password", new_password)
+        
+        # 清除输入框
+        self.new_username_input.clear()
+        self.new_password_input.clear()
+        
+        # 更新显示
+        current_user = self.settings.value("username", "未保存")
+        self.current_user_label.setText(f"当前保存的账号: {current_user}")
+        
+        # 如果已登录，提示需要重新登录
+        if self.auth_token:
+            self.show_notification("账号信息已更新，请重新登录")
+            # 执行登出
+            self.handle_logout()
+        else:
+            self.show_notification("账号信息已保存")
+
+    def on_select_background(self):
+        """选择自定义背景图"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "选择背景图片",
+            "",
+            "图片文件 (*.jpg *.jpeg *.png *.bmp)"
+        )
+        
+        if file_path:
+            # 复制到 data 文件夹
+            import shutil
+            data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+            if not os.path.exists(data_dir):
+                os.makedirs(data_dir)
+            target_path = os.path.join(data_dir, "custom_bg.jpg")
+            try:
+                shutil.copy(file_path, target_path)
+                self.settings.setValue("custom_bg_path", target_path)
+                self.update_bg_preview()
+                self.apply_background()
+                self.show_notification("背景图片已更新")
+            except Exception as e:
+                self.show_notification(f"设置背景失败: {str(e)}")
+
+    def on_reset_background(self):
+        """恢复默认背景"""
+        # 删除自定义背景文件
+        custom_bg = self.settings.value("custom_bg_path", "")
+        if custom_bg and os.path.exists(custom_bg):
+            try:
+                os.remove(custom_bg)
+            except Exception as e:
+                logger.warning(f"删除自定义背景文件失败: {e}")
+        
+        self.settings.remove("custom_bg_path")
+        self.update_bg_preview()
+        self.apply_background()
+        self.show_notification("已恢复默认背景")
+
+    def on_clear_log(self):
+        """清空日志文件"""
+        log_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs', 'main.log')
+        try:
+            with open(log_file, 'w', encoding='utf-8') as f:
+                f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [INFO] 日志已清空\n")
+            self.show_notification("日志已清空")
+        except Exception as e:
+            self.show_notification(f"清空日志失败: {str(e)}")
+
+    def update_bg_preview(self):
+        """更新背景预览"""
+        custom_bg = self.settings.value("custom_bg_path", "")
+        if custom_bg and os.path.exists(custom_bg):
+            self.bg_preview_label.setText("当前背景: 自定义")
+            pixmap = QPixmap(custom_bg)
+            if not pixmap.isNull():
+                scaled = pixmap.scaled(300, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                self.bg_preview.setPixmap(scaled)
+        else:
+            self.bg_preview_label.setText("当前背景: 默认")
+            self.bg_preview.setText("默认背景")
+
+    def apply_background(self):
+        """应用背景设置"""
+        custom_bg = self.settings.value("custom_bg_path", "")
+        if custom_bg and os.path.exists(custom_bg):
+            pixmap = QPixmap(custom_bg)
+            if not pixmap.isNull():
+                self.bg_pixmap = pixmap
+                self.bg_label.setPixmap(pixmap.scaled(
+                    self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
+                ))
+        else:
+            # 恢复默认背景
+            default_bg = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "background.png")
+            if os.path.exists(default_bg):
+                pixmap = QPixmap(default_bg)
+                if not pixmap.isNull():
+                    self.bg_pixmap = pixmap
+                    self.bg_label.setPixmap(pixmap.scaled(
+                        self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
+                    ))
+
     def create_home_tab(self):
         widget = QWidget()
         layout = QVBoxLayout(widget)
@@ -3309,12 +4553,12 @@ class ISFPApp(QMainWindow):
         self.pilot_stat_card = self.create_stat_panel("在线机组", "---", "#2ecc71")
         # 在线管制 (替代原网络延迟)
         self.atc_stat_card = self.create_stat_panel("在线管制", "---", "#f1c40f")
-        # 运行时间
-        self.uptime_stat_card = self.create_stat_panel("系统状态", "正常", "#3498db")
+        # 在线总人数
+        self.total_stat_card = self.create_stat_panel("在线总人数", "---", "#3498db")
 
         stats_layout.addWidget(self.pilot_stat_card)
         stats_layout.addWidget(self.atc_stat_card)
-        stats_layout.addWidget(self.uptime_stat_card)
+        stats_layout.addWidget(self.total_stat_card)
 
         layout.addWidget(stats_container)
         layout.addStretch()
@@ -3359,6 +4603,7 @@ class ISFPApp(QMainWindow):
     def on_home_stats_ready(self, data):
         pilots = data.get("pilots", [])
         controllers = data.get("controllers", [])
+        total = len(pilots) + len(controllers)
         
         # 更新首页卡片中的数值
         p_val = self.pilot_stat_card.findChild(QLabel, "ValueLabel")
@@ -3368,6 +4613,11 @@ class ISFPApp(QMainWindow):
         a_val = self.atc_stat_card.findChild(QLabel, "ValueLabel")
         if a_val:
             a_val.setText(str(len(controllers)))
+        
+        # 更新在线总人数
+        t_val = self.total_stat_card.findChild(QLabel, "ValueLabel")
+        if t_val:
+            t_val.setText(str(total))
 
     def create_weather_tab(self):
         widget = QWidget()
@@ -4322,44 +5572,60 @@ class ISFPApp(QMainWindow):
         self.manage_thread(self.photo_thread)
 
     def display_plane_photo(self, data):
+        xz_logger = logging.getLogger('ISFP-Connect.XZPhotos')
+        reg = self.fields["reg"].text().strip().upper()
+        
         if data.get("success") and data["data"].get("photo_found"):
             img_url = data["data"]["photo_image_url"]
+            xz_logger.info(f"[图片下载-预览] 开始下载 - 注册号: {reg}, URL: {img_url}")
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             }
             try:
-                img_data = requests.get(img_url, headers=headers, timeout=15).content
-                image = QImage()
-                image.loadFromData(img_data)
-                
-                # 原始 Pixmap
-                pixmap = QPixmap.fromImage(image).scaled(
-                    self.plane_img_label.size(), 
-                    Qt.KeepAspectRatio, # 改为 KeepAspectRatio 保证图片展示全
-                    Qt.SmoothTransformation
-                )
+                response = requests.get(img_url, headers=headers, timeout=15)
+                xz_logger.info(f"[图片下载-预览] 响应状态码: {response.status_code}")
+                if response.status_code == 200:
+                    img_data = response.content
+                    xz_logger.info(f"[图片下载-预览] 下载成功 - 大小: {len(img_data)} bytes")
+                    
+                    image = QImage()
+                    image.loadFromData(img_data)
+                    
+                    # 原始 Pixmap
+                    pixmap = QPixmap.fromImage(image).scaled(
+                        self.plane_img_label.size(), 
+                        Qt.KeepAspectRatio, # 改为 KeepAspectRatio 保证图片展示全
+                        Qt.SmoothTransformation
+                    )
 
-                # 创建圆角裁剪后的 Pixmap
-                rounded_pixmap = QPixmap(pixmap.size())
-                rounded_pixmap.fill(Qt.transparent)
-                
-                painter = QPainter(rounded_pixmap)
-                painter.setRenderHint(QPainter.Antialiasing)
-                painter.setRenderHint(QPainter.SmoothPixmapTransform)
-                
-                path = QPainterPath()
-                path.addRoundedRect(0, 0, pixmap.width(), pixmap.height(), 20, 20)
-                painter.setClipPath(path)
-                painter.drawPixmap(0, 0, pixmap)
-                painter.end()
+                    # 创建圆角裁剪后的 Pixmap
+                    rounded_pixmap = QPixmap(pixmap.size())
+                    rounded_pixmap.fill(Qt.transparent)
+                    
+                    painter = QPainter(rounded_pixmap)
+                    painter.setRenderHint(QPainter.Antialiasing)
+                    painter.setRenderHint(QPainter.SmoothPixmapTransform)
+                    
+                    path = QPainterPath()
+                    path.addRoundedRect(0, 0, pixmap.width(), pixmap.height(), 20, 20)
+                    painter.setClipPath(path)
+                    painter.drawPixmap(0, 0, pixmap)
+                    painter.end()
 
-                self.plane_img_label.setPixmap(rounded_pixmap)
-                self.plane_img_label.setStyleSheet("border: none;") # 移除边框，使用圆角图
-                
-                if not self.fields["ac"].text():
-                    self.fields["ac"].setText(data["data"].get("aircraft_type", ""))
+                    self.plane_img_label.setPixmap(rounded_pixmap)
+                    self.plane_img_label.setStyleSheet("border: none;") # 移除边框，使用圆角图
+                    xz_logger.info(f"[图片下载-预览] 图片预览已显示 - 注册号: {reg}")
+                    
+                    if not self.fields["ac"].text():
+                        aircraft_type = data["data"].get("aircraft_type", "")
+                        self.fields["ac"].setText(aircraft_type)
+                        xz_logger.info(f"[图片下载-预览] 自动填充机型: {aircraft_type}")
+                else:
+                    xz_logger.warning(f"[图片下载-预览] 下载失败 - 状态码: {response.status_code}")
             except Exception as e:
-                print(f"图片下载失败: {e}")
+                xz_logger.error(f"[图片下载-预览] 异常 - 注册号: {reg}, 错误: {str(e)}")
+        else:
+            xz_logger.info(f"[图片下载-预览] API未返回图片 - 注册号: {reg}")
 
 if __name__ == "__main__":
     # 修复 Windows 任务栏图标不显示的问题
