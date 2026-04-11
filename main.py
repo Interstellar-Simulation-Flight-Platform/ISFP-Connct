@@ -20,6 +20,49 @@ from PySide6.QtGui import QPixmap, QIcon, QFont, QPalette, QColor, QBrush, QImag
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 from PySide6.QtWebChannel import QWebChannel
 
+# 导入 X-Plane TCP 客户端模块
+try:
+    from xplane_tcp_client import (
+        XPlaneTCPClient, get_xplane_tcp_client
+    )
+    XPLANE_TCP_AVAILABLE = True
+except ImportError as e:
+    XPLANE_TCP_AVAILABLE = False
+    print(f"X-Plane TCP 客户端模块未加载: {e}")
+
+# 导入 X-Plane 插件管理器
+try:
+    from xplane_plugin_manager import (
+        XPlanePluginManager, get_plugin_manager
+    )
+    XPLANE_PLUGIN_MANAGER_AVAILABLE = True
+except ImportError as e:
+    XPLANE_PLUGIN_MANAGER_AVAILABLE = False
+    print(f"X-Plane 插件管理器模块未加载: {e}")
+
+# 导入 FSD 客户端模块
+try:
+    from fsd_client import (
+        FSDClient, get_fsd_client,
+        FSDPilotPosition, FSDFlightPlan, PilotRating,
+        SimType, TransponderMode, ProtocolRevision
+    )
+    FSD_AVAILABLE = True
+except ImportError as e:
+    FSD_AVAILABLE = False
+    print(f"FSD 模块未加载: {e}")
+
+# 导入灵动岛模块
+try:
+    from dynamic_island import (
+        get_dynamic_island, show_dynamic_island_message,
+        update_flight_on_island
+    )
+    DYNAMIC_ISLAND_AVAILABLE = True
+except ImportError as e:
+    DYNAMIC_ISLAND_AVAILABLE = False
+    print(f"灵动岛模块未加载: {e}")
+
 # ================= 日志配置 =================
 def setup_logging():
     """配置日志记录"""
@@ -180,8 +223,14 @@ class APIThread(QThread):
             result = {}
             if self.is_json:
                 result = response.json()
-                # 检测JWT过期
-                if result.get("code") == "MISSING_OR_MALFORMED_JWT":
+                # 检测JWT过期或认证错误
+                error_code = result.get("code", "")
+                if error_code in ["MISSING_OR_MALFORMED_JWT", "UNAUTHORIZED", "TOKEN_EXPIRED", "JWT_EXPIRED", "401", 401]:
+                    self.jwt_expired.emit()
+                    return
+                # 也检查 message 中是否包含过期关键词
+                message = result.get("message", "").lower()
+                if any(keyword in message for keyword in ["token", "jwt", "expired", "过期", "未授权", "unauthorized"]):
                     self.jwt_expired.emit()
                     return
             else:
@@ -1259,12 +1308,102 @@ class ISFPApp(QMainWindow):
         # 线程管理器，防止 QThread 被 GC 回收
         self._active_threads = set()
         
+        # 初始化 X-Plane 插件管理器
+        self._init_plugin_manager()
+        
         self.setup_ui()
+        
+        # 加载保存的 X-Plane 路径
+        self._load_xplane_path()
+        
+        # 启动时检查插件状态
+        self._check_plugin_status_on_startup()
+        
+        # 初始化灵动岛
+        self._init_dynamic_island()
         
         # 启动时检查登录状态
         if not self.auth_token:
             # 默认显示账户页面（登录页面）
-            self.switch_page(8)
+            self.switch_page(9)  # 账户页面现在是第9个
+    
+    def _init_plugin_manager(self):
+        """初始化 X-Plane 插件管理器"""
+        if XPLANE_PLUGIN_MANAGER_AVAILABLE:
+            try:
+                self.plugin_manager = get_plugin_manager(self.settings, self)
+                # 连接信号
+                self.plugin_manager.path_changed.connect(self._on_xplane_path_changed)
+                self.plugin_manager.version_detected.connect(self._on_xplane_version_detected)
+                self.plugin_manager.plugin_installed.connect(self._on_plugin_installed)
+                self.plugin_manager.plugin_uninstalled.connect(self._on_plugin_uninstalled)
+                logger.info("X-Plane 插件管理器初始化成功")
+            except Exception as e:
+                logger.error(f"初始化插件管理器失败: {e}")
+                self.plugin_manager = None
+        else:
+            self.plugin_manager = None
+    
+    def _check_plugin_status_on_startup(self):
+        """启动时检查插件状态"""
+        if self.plugin_manager:
+            try:
+                status = self.plugin_manager.check_and_update_status()
+                logger.info(f"启动时插件状态检查: {status}")
+            except Exception as e:
+                logger.error(f"启动时检查插件状态失败: {e}")
+    
+    def _on_xplane_path_changed(self, path: str):
+        """X-Plane 路径改变回调"""
+        logger.info(f"X-Plane 路径已更改: {path}")
+        # 更新设置页面的显示
+        if hasattr(self, 'xplane_path_label'):
+            self.xplane_path_label.setText(f"当前路径: {path}")
+    
+    def _on_xplane_version_detected(self, version: int):
+        """检测到 X-Plane 版本回调"""
+        logger.info(f"检测到 X-Plane 版本: {version}")
+        # 更新设置页面的显示
+        if hasattr(self, 'xplane_version_label'):
+            self.xplane_version_label.setText(f"检测版本: X-Plane {version}")
+    
+    def _on_plugin_installed(self, success: bool, message: str):
+        """插件安装完成回调"""
+        if success:
+            self.show_notification(f"✅ {message}")
+            logger.info(message)
+        else:
+            self.show_notification(f"❌ {message}")
+            logger.error(message)
+        # 更新设置页面的按钮状态
+        self._update_plugin_ui_status()
+    
+    def _on_plugin_uninstalled(self, success: bool, message: str):
+        """插件卸载完成回调"""
+        if success:
+            self.show_notification(f"✅ {message}")
+            logger.info(message)
+        else:
+            self.show_notification(f"❌ {message}")
+            logger.error(message)
+        # 更新设置页面的按钮状态
+        self._update_plugin_ui_status()
+    
+    def _load_xplane_path(self):
+        """加载保存的 X-Plane 路径（由插件管理器处理）"""
+        # 插件管理器会自动加载保存的路径
+        pass
+    
+    def _init_dynamic_island(self):
+        """初始化灵动岛"""
+        try:
+            from dynamic_island import get_dynamic_island
+            # 获取灵动岛实例（如果启用了会自动显示）
+            self.dynamic_island = get_dynamic_island(self)
+            logger.info("灵动岛已初始化")
+        except ImportError:
+            logger.warning("灵动岛模块未找到")
+            self.dynamic_island = None
 
     def resizeEvent(self, event):
         """ 处理窗口大小调整事件 """
@@ -1301,7 +1440,7 @@ class ISFPApp(QMainWindow):
             self.update_account_ui()
             self.show_notification("登录已过期，请重新登录")
             # 显示登录页面
-            self.switch_page(8)
+            self.switch_page(9)  # 账户页面现在是第9个
         
         thread.finished.connect(cleanup)
         if hasattr(thread, 'jwt_expired'):
@@ -1463,17 +1602,19 @@ class ISFPApp(QMainWindow):
         self.nam = QNetworkAccessManager(self)
         
         # 创建堆叠窗口用于切换页面
+        # 注意：页面顺序必须与导航按钮顺序一致
         self.stacked_widget = QStackedWidget()
-        self.stacked_widget.addWidget(self.create_home_tab())      # 0
-        self.stacked_widget.addWidget(self.create_weather_tab())   # 1
-        self.stacked_widget.addWidget(self.create_map_tab())       # 2
-        self.stacked_widget.addWidget(self.create_rating_tab())    # 3
-        self.stacked_widget.addWidget(self.create_dispatch_tab())  # 4
-        self.stacked_widget.addWidget(self.create_flight_plan_tab()) # 5
-        self.stacked_widget.addWidget(self.create_activities_tab())  # 6
-        self.stacked_widget.addWidget(self.create_ticket_tab())      # 7
-        self.stacked_widget.addWidget(self.create_account_tab())     # 8
-        self.stacked_widget.addWidget(self.create_settings_tab())    # 9
+        self.stacked_widget.addWidget(self.create_home_tab())        # 0 - 首页
+        self.stacked_widget.addWidget(self.create_connection_tab())  # 1 - 连线（正数第二个）
+        self.stacked_widget.addWidget(self.create_weather_tab())     # 2 - 气象
+        self.stacked_widget.addWidget(self.create_map_tab())         # 3 - 地图
+        self.stacked_widget.addWidget(self.create_rating_tab())      # 4 - 排行
+        self.stacked_widget.addWidget(self.create_dispatch_tab())    # 5 - 签派
+        self.stacked_widget.addWidget(self.create_flight_plan_tab()) # 6 - 计划
+        self.stacked_widget.addWidget(self.create_activities_tab())  # 7 - 活动
+        self.stacked_widget.addWidget(self.create_ticket_tab())      # 8 - 工单
+        self.stacked_widget.addWidget(self.create_account_tab())     # 9 - 账户
+        self.stacked_widget.addWidget(self.create_settings_tab())    # 10 - 设置
         
         self.content_layout.addWidget(self.stacked_widget, stretch=1)
         
@@ -1538,18 +1679,19 @@ class ISFPApp(QMainWindow):
         sidebar_layout.addWidget(self.logo_container)
         sidebar_layout.addSpacing(30)
         
-        # 导航按钮
+        # 导航按钮（连线固定在正数第二个，索引为1）
         nav_items = [
             ("🏠", "首页", 0),
-            ("🌤", "气象", 1),
-            ("🗺", "地图", 2),
-            ("🏆", "排行", 3),
-            ("✈", "签派", 4),
-            ("📋", "计划", 5),
-            ("📅", "活动", 6),
-            ("🎫", "工单", 7),
-            ("👤", "账户", 8),
-            ("⚙", "设置", 9),
+            ("🎮", "连线", 1),
+            ("🌤", "气象", 2),
+            ("🗺", "地图", 3),
+            ("🏆", "排行", 4),
+            ("✈️", "签派", 5),
+            ("📋", "计划", 6),
+            ("📅", "活动", 7),
+            ("🎫", "工单", 8),
+            ("👤", "账户", 9),
+            ("⚙", "设置", 10),
         ]
         
         self.nav_buttons = []
@@ -1679,7 +1821,7 @@ class ISFPApp(QMainWindow):
                 background: rgba(52, 152, 219, 0.5);
             }
         """)
-        self.top_user_btn.clicked.connect(lambda: self.switch_page(8))
+        self.top_user_btn.clicked.connect(lambda: self.switch_page(9))  # 账户页面现在是第9个
         top_layout.addWidget(self.top_user_btn)
         
         self.content_layout.addWidget(top_bar)
@@ -1687,10 +1829,11 @@ class ISFPApp(QMainWindow):
     def switch_page(self, index):
         """切换页面"""
         # 检查是否需要登录（所有页面都需要登录，除了登录页本身）
-        protected_pages = [0, 1, 2, 3, 4, 5, 6, 7, 9]  # 首页、气象、地图、排行、签派、计划、活动、工单、设置
+        # 页面索引: 0=首页, 1=连线, 2=气象, 3=地图, 4=排行, 5=签派, 6=计划, 7=活动, 8=工单, 9=账户, 10=设置
+        protected_pages = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10]  # 首页、连线、气象、地图、排行、签派、计划、活动、工单、设置
         if index in protected_pages and not self.auth_token:
             self.show_notification("请先登录")
-            index = 8  # 跳转到账户/登录页面
+            index = 9  # 跳转到账户/登录页面
         
         # 更新按钮状态
         for i, btn in enumerate(self.nav_buttons):
@@ -1699,22 +1842,22 @@ class ISFPApp(QMainWindow):
         # 切换页面
         self.stacked_widget.setCurrentIndex(index)
         
-        # 更新标题
-        titles = ["首页", "气象", "地图", "排行", "签派", "计划", "活动", "工单", "账户", "设置"]
+        # 更新标题（顺序必须与页面堆栈一致）
+        titles = ["首页", "连线", "气象", "地图", "排行", "签派", "计划", "活动", "工单", "账户", "设置"]
         self.page_title.setText(titles[index])
         
         # 自动刷新数据
-        if index == 2:  # 地图
+        if index == 3:  # 地图
             self.load_map_data()
-        elif index == 3:  # 排行
+        elif index == 4:  # 排行
             self.load_ratings()
-        elif index == 4:  # 签派
+        elif index == 5:  # 签派
             self.load_dispatch_data()
-        elif index == 5:  # 计划
+        elif index == 6:  # 计划
             self.load_server_flight_plan()
-        elif index == 6:  # 活动
+        elif index == 7:  # 活动
             self.load_activities()
-        elif index == 7:  # 工单
+        elif index == 8:  # 工单
             self.load_tickets()
         
         # 添加切换动画效果
@@ -1813,38 +1956,42 @@ class ISFPApp(QMainWindow):
         self._sidebar_max_anim.setEndValue(self.sidebar_compact_width)
         self._sidebar_max_anim.setEasingCurve(QEasingCurve.InOutCubic)
         
-        # 隐藏文本
-        self.title_label.hide()
-        self.version_label.hide()
-        self.status_label.hide()
+        # 动画完成后才改变按钮文本
+        def on_collapse_finished():
+            # 隐藏文本
+            self.title_label.hide()
+            self.version_label.hide()
+            self.status_label.hide()
+            
+            # 调整占位宽度使 Logo 居中
+            self.right_spacer.setFixedWidth(0)
+            
+            # 按钮只显示图标（连线固定在正数第二个）
+            nav_items = ["🏠", "🎮", "🌤", "🗺", "🏆", "✈️", "📋", "📅", "🎫", "👤", "⚙"]
+            for i, btn in enumerate(self.nav_buttons):
+                if i < len(nav_items):
+                    btn.setText(nav_items[i])
+                btn.setStyleSheet("""
+                    QPushButton {
+                        background: transparent;
+                        color: #bdc3c7;
+                        text-align: center;
+                        font-size: 18px;
+                        border-radius: 8px;
+                        border: none;
+                    }
+                    QPushButton:hover {
+                        background: rgba(52, 152, 219, 0.2);
+                        color: white;
+                    }
+                    QPushButton:checked {
+                        background: rgba(52, 152, 219, 0.4);
+                        color: white;
+                        border-left: 3px solid #3498db;
+                    }
+                """)
         
-        # 调整占位宽度使 Logo 居中
-        self.right_spacer.setFixedWidth(0)
-        
-        # 按钮只显示图标
-        nav_items = ["🏠", "🌤", "🗺", "🏆", "✈", "📋", "📅", "🎫", "👤", "⚙"]
-        for i, btn in enumerate(self.nav_buttons):
-            btn.setText(nav_items[i])
-            btn.setStyleSheet("""
-                QPushButton {
-                    background: transparent;
-                    color: #bdc3c7;
-                    text-align: center;
-                    font-size: 18px;
-                    border-radius: 8px;
-                    border: none;
-                }
-                QPushButton:hover {
-                    background: rgba(52, 152, 219, 0.2);
-                    color: white;
-                }
-                QPushButton:checked {
-                    background: rgba(52, 152, 219, 0.4);
-                    color: white;
-                    border-left: 3px solid #3498db;
-                }
-            """)
-        
+        self._sidebar_anim.finished.connect(on_collapse_finished)
         self._sidebar_anim.start()
         self._sidebar_max_anim.start()
 
@@ -1875,13 +2022,14 @@ class ISFPApp(QMainWindow):
         # 调整占位宽度使 Logo 和标题居中偏左
         self.right_spacer.setFixedWidth(10)
         
-        # 恢复按钮文本
+        # 恢复按钮文本（连线固定在正数第二个）
         nav_items = [
             ("🏠", "首页"),
+            ("🎮", "连线"),
             ("🌤", "气象"),
             ("🗺", "地图"),
             ("🏆", "排行"),
-            ("✈", "签派"),
+            ("✈️", "签派"),
             ("📋", "计划"),
             ("📅", "活动"),
             ("🎫", "工单"),
@@ -1889,7 +2037,8 @@ class ISFPApp(QMainWindow):
             ("⚙", "设置"),
         ]
         for i, btn in enumerate(self.nav_buttons):
-            btn.setText(f"{nav_items[i][0]}  {nav_items[i][1]}")
+            if i < len(nav_items):
+                btn.setText(f"{nav_items[i][0]}  {nav_items[i][1]}")
             btn.setStyleSheet("""
                 QPushButton {
                     background: transparent;
@@ -2504,6 +2653,11 @@ class ISFPApp(QMainWindow):
             self.dispatch_manager.add_flight(data)
             self.load_dispatch_data()
             self.show_notification("航班签派成功，已添加至历史记录")
+            
+            # 在灵动岛显示新航班信息
+            if DYNAMIC_ISLAND_AVAILABLE:
+                callsign = data.get('callsign', '')
+                update_flight_on_island(callsign, '准备')
 
     def show_flight_details(self, item):
         flight_data = item.data(Qt.UserRole)
@@ -2516,6 +2670,15 @@ class ISFPApp(QMainWindow):
         if self.dispatch_manager.update_flight_status(flight_data, new_status):
             self.load_dispatch_data()
             logger.info(f"航班 {flight_data.get('callsign')} 状态更新为: {new_status}")
+            
+            # 更新灵动岛航班信息
+            if DYNAMIC_ISLAND_AVAILABLE:
+                callsign = flight_data.get('callsign', '')
+                update_flight_on_island(callsign, new_status)
+                
+                # 显示状态变更通知
+                if new_status not in ['着陆', '落地']:
+                    self.show_notification(f"航班 {callsign} 状态: {new_status}")
 
     def create_map_tab(self):
         widget = QWidget()
@@ -2532,7 +2695,7 @@ class ISFPApp(QMainWindow):
         
         # 在线机组标题
         online_title = QLabel("在线机组")
-        online_title.setStyleSheet("color: #3498db; font-size: 16px; font-weight: bold; margin-bottom: 10px;")
+        online_title.setStyleSheet("color: #3498db; font-size: 16px; font-weight: bold; background: transparent;")
         online_layout.addWidget(online_title)
         
         # 刷新按钮
@@ -3518,6 +3681,707 @@ class ISFPApp(QMainWindow):
         
         dialog.exec()
 
+    def create_connection_tab(self):
+        """创建连线页面（X-Plane Native Plugin 连接）"""
+        # 使用滚动区域作为主容器
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background: transparent;
+            }
+            QScrollArea > QWidget > QWidget {
+                background: transparent;
+            }
+            QScrollBar:vertical {
+                background: rgba(0, 0, 0, 0.3);
+                width: 10px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(255, 255, 255, 0.3);
+                border-radius: 5px;
+                min-height: 30px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(255, 255, 255, 0.5);
+            }
+        """)
+        
+        # 创建内容容器
+        content_widget = QWidget()
+        content_widget.setStyleSheet("background: transparent;")
+        layout = QVBoxLayout(content_widget)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(15)
+        
+        # 标题
+        title = QLabel("🎮 模拟器连线")
+        title.setFont(QFont("Microsoft YaHei", 24, QFont.Bold))
+        title.setStyleSheet("color: white;")
+        layout.addWidget(title)
+        
+        # 副标题说明
+        subtitle = QLabel("通过 ISFP Connect 原生插件连接 X-Plane 模拟器")
+        subtitle.setStyleSheet("color: #7f8c8d; font-size: 13px;")
+        layout.addWidget(subtitle)
+        
+        # 检查 X-Plane TCP 客户端是否可用
+        if not XPLANE_TCP_AVAILABLE:
+            error_label = QLabel("⚠️ X-Plane TCP 客户端模块未加载，请检查 xplane_tcp_client.py 文件是否存在")
+            error_label.setStyleSheet("color: #e74c3c; font-size: 14px; padding: 20px;")
+            layout.addWidget(error_label)
+            layout.addStretch()
+            scroll_area.setWidget(content_widget)
+            return scroll_area
+        
+        # 连接状态卡片
+        status_card = QFrame()
+        status_card.setStyleSheet("""
+            QFrame {
+                background: rgba(0, 0, 0, 0.3);
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 20px;
+            }
+        """)
+        status_layout = QVBoxLayout(status_card)
+        
+        # 状态标题
+        status_title = QLabel("连接状态")
+        status_title.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
+        status_title.setStyleSheet("color: white;")
+        status_layout.addWidget(status_title)
+        
+        # 状态指示器
+        self.connection_status_label = QLabel("🔴 未连接")
+        self.connection_status_label.setFont(QFont("Microsoft YaHei", 16))
+        self.connection_status_label.setStyleSheet("color: #e74c3c; padding: 10px 0;")
+        status_layout.addWidget(self.connection_status_label)
+        
+        # 连接信息
+        self.connection_info_label = QLabel('点击"连接"按钮连接到 X-Plane')
+        self.connection_info_label.setStyleSheet("color: #bdc3c7; font-size: 12px;")
+        status_layout.addWidget(self.connection_info_label)
+        
+        # 按钮区域
+        btn_layout = QHBoxLayout()
+        
+        self.connect_btn = QPushButton("🔗 连接")
+        self.connect_btn.setCursor(Qt.PointingHandCursor)
+        self.connect_btn.setStyleSheet("""
+            QPushButton {
+                background: #27ae60;
+                color: white;
+                padding: 12px 30px;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
+                border: none;
+            }
+            QPushButton:hover {
+                background: #2ecc71;
+            }
+            QPushButton:disabled {
+                background: #7f8c8d;
+            }
+        """)
+        self.connect_btn.clicked.connect(self.on_connect_xplane)
+        btn_layout.addWidget(self.connect_btn)
+        
+        self.disconnect_btn = QPushButton("❌ 断开")
+        self.disconnect_btn.setCursor(Qt.PointingHandCursor)
+        self.disconnect_btn.setStyleSheet("""
+            QPushButton {
+                background: #c0392b;
+                color: white;
+                padding: 12px 30px;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
+                border: none;
+            }
+            QPushButton:hover {
+                background: #e74c3c;
+            }
+            QPushButton:disabled {
+                background: #7f8c8d;
+            }
+        """)
+        self.disconnect_btn.clicked.connect(self.on_disconnect_xplane)
+        self.disconnect_btn.setEnabled(False)
+        btn_layout.addWidget(self.disconnect_btn)
+        
+        btn_layout.addStretch()
+        status_layout.addLayout(btn_layout)
+        
+        layout.addWidget(status_card)
+        
+        # 飞机数据卡片
+        data_card = QFrame()
+        data_card.setStyleSheet("""
+            QFrame {
+                background: rgba(0, 0, 0, 0.3);
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 20px;
+            }
+        """)
+        data_layout = QVBoxLayout(data_card)
+        
+        data_title = QLabel("✈️ 本机数据")
+        data_title.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
+        data_title.setStyleSheet("color: white;")
+        data_layout.addWidget(data_title)
+        
+        # 数据标签
+        self.own_data_label = QLabel("未连接模拟器")
+        self.own_data_label.setStyleSheet("color: #bdc3c7; font-size: 12px; font-family: Consolas, monospace;")
+        self.own_data_label.setWordWrap(True)
+        data_layout.addWidget(self.own_data_label)
+        
+        layout.addWidget(data_card)
+        
+        # ==================== FSD 服务器连接卡片 ====================
+        fsd_card = QFrame()
+        fsd_card.setStyleSheet("""
+            QFrame {
+                background: rgba(0, 0, 0, 0.3);
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                padding: 20px;
+            }
+        """)
+        fsd_layout = QVBoxLayout(fsd_card)
+        
+        fsd_title = QLabel("🌐 FSD 服务器连接")
+        fsd_title.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
+        fsd_title.setStyleSheet("color: white;")
+        fsd_layout.addWidget(fsd_title)
+        
+        # 检查 FSD 模块是否可用
+        if not FSD_AVAILABLE:
+            fsd_error_label = QLabel("⚠️ FSD 模块未加载")
+            fsd_error_label.setStyleSheet("color: #e74c3c; font-size: 12px; padding: 10px;")
+            fsd_layout.addWidget(fsd_error_label)
+        else:
+            # FSD 连接状态
+            self.fsd_status_label = QLabel("🔴 未连接")
+            self.fsd_status_label.setFont(QFont("Microsoft YaHei", 14))
+            self.fsd_status_label.setStyleSheet("color: #e74c3c; padding: 10px 0;")
+            fsd_layout.addWidget(self.fsd_status_label)
+            
+            # FSD 连接信息
+            self.fsd_info_label = QLabel('点击按钮连接到服务器')
+            self.fsd_info_label.setStyleSheet("color: #bdc3c7; font-size: 12px;")
+            fsd_layout.addWidget(self.fsd_info_label)
+            
+            # 服务器配置（使用垂直布局，去掉表单的外框）
+            fsd_config_layout = QVBoxLayout()
+            fsd_config_layout.setSpacing(10)
+            fsd_config_layout.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+            
+            # 服务器和端口固定，不需要用户输入
+            self.fsd_server = "fsd.flyisfp.com"
+            self.fsd_port = 6809
+            
+            # 显示固定的服务器信息（只读）
+            server_info = QLabel("🌐 fsd.flyisfp.com:6809")
+            server_info.setStyleSheet("color: #7f8c8d; font-size: 12px;")
+            fsd_config_layout.addWidget(server_info)
+            
+            # 呼号输入
+            self.fsd_callsign_input = QLineEdit()
+            self.fsd_callsign_input.setMaximumWidth(300)
+            self.fsd_callsign_input.setFixedHeight(28)
+            self.fsd_callsign_input.setStyleSheet("""
+                QLineEdit {
+                    background: transparent;
+                    border: none;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+                    padding: 2px 4px;
+                    color: white;
+                }
+                QLineEdit:focus {
+                    border-bottom: 1px solid #3498db;
+                }
+            """)
+            self.fsd_callsign_input.setPlaceholderText("呼号 (如 CCA1234)")
+            fsd_config_layout.addWidget(self.fsd_callsign_input)
+            
+            # 真实姓名输入
+            self.fsd_realname_input = QLineEdit()
+            self.fsd_realname_input.setMaximumWidth(300)
+            self.fsd_realname_input.setFixedHeight(28)
+            self.fsd_realname_input.setStyleSheet("""
+                QLineEdit {
+                    background: transparent;
+                    border: none;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+                    padding: 2px 4px;
+                    color: white;
+                }
+                QLineEdit:focus {
+                    border-bottom: 1px solid #3498db;
+                }
+            """)
+            self.fsd_realname_input.setPlaceholderText("昵称或CID (如 quanquan)")
+            fsd_config_layout.addWidget(self.fsd_realname_input)
+            
+            fsd_layout.addLayout(fsd_config_layout)
+            
+            # FSD 按钮区域
+            fsd_btn_layout = QHBoxLayout()
+            
+            self.fsd_connect_btn = QPushButton("🔗 连接服务器")
+            self.fsd_connect_btn.setCursor(Qt.PointingHandCursor)
+            self.fsd_connect_btn.setStyleSheet("""
+                QPushButton {
+                    background: #2980b9;
+                    color: white;
+                    padding: 10px 25px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                    font-weight: bold;
+                    border: none;
+                }
+                QPushButton:hover {
+                    background: #3498db;
+                }
+                QPushButton:disabled {
+                    background: #7f8c8d;
+                }
+            """)
+            self.fsd_connect_btn.clicked.connect(self.on_connect_fsd)
+            fsd_btn_layout.addWidget(self.fsd_connect_btn)
+            
+            self.fsd_disconnect_btn = QPushButton("❌ 断开")
+            self.fsd_disconnect_btn.setCursor(Qt.PointingHandCursor)
+            self.fsd_disconnect_btn.setStyleSheet("""
+                QPushButton {
+                    background: #c0392b;
+                    color: white;
+                    padding: 10px 25px;
+                    border-radius: 6px;
+                    font-size: 13px;
+                    font-weight: bold;
+                    border: none;
+                }
+                QPushButton:hover {
+                    background: #e74c3c;
+                }
+                QPushButton:disabled {
+                    background: #7f8c8d;
+                }
+            """)
+            self.fsd_disconnect_btn.clicked.connect(self.on_disconnect_fsd)
+            self.fsd_disconnect_btn.setEnabled(False)
+            fsd_btn_layout.addWidget(self.fsd_disconnect_btn)
+            
+            fsd_btn_layout.addStretch()
+            fsd_layout.addLayout(fsd_btn_layout)
+            
+            # 日志显示区域（只显示连接日志）
+            fsd_log_label = QLabel("📋 连接日志")
+            fsd_log_label.setStyleSheet("color: #bdc3c7; font-size: 12px; margin-top: 10px;")
+            fsd_layout.addWidget(fsd_log_label)
+            
+            self.fsd_messages = QTextEdit()
+            self.fsd_messages.setReadOnly(True)
+            self.fsd_messages.setMaximumHeight(80)
+            self.fsd_messages.setStyleSheet("""
+                QTextEdit {
+                    background: rgba(0, 0, 0, 0.5);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 5px;
+                    color: #7f8c8d;
+                    font-family: Consolas, monospace;
+                    font-size: 10px;
+                }
+            """)
+            fsd_layout.addWidget(self.fsd_messages)
+            
+            # 信息栏目（显示文本消息）
+            fsd_info_label = QLabel("💬 信息")
+            fsd_info_label.setStyleSheet("color: #bdc3c7; font-size: 12px; margin-top: 10px;")
+            fsd_layout.addWidget(fsd_info_label)
+            
+            self.fsd_info_messages = QTextEdit()
+            self.fsd_info_messages.setReadOnly(True)
+            self.fsd_info_messages.setMinimumHeight(150)
+            self.fsd_info_messages.setStyleSheet("""
+                QTextEdit {
+                    background: rgba(0, 0, 0, 0.5);
+                    border: 1px solid rgba(255, 255, 255, 0.1);
+                    border-radius: 5px;
+                    color: #2ecc71;
+                    font-family: Consolas, monospace;
+                    font-size: 11px;
+                }
+            """)
+            fsd_layout.addWidget(self.fsd_info_messages)
+        
+        layout.addWidget(fsd_card)
+        
+        layout.addStretch()
+        
+        # 设置内容容器到滚动区域
+        scroll_area.setWidget(content_widget)
+        
+        # 初始化 X-Plane TCP Client
+        self.xplane_connector = None
+        self._connection_update_timer = QTimer(self)
+        self._connection_update_timer.timeout.connect(self.update_connection_ui)
+        self._connection_update_timer.start(1000)  # 每秒更新一次 UI
+        
+        # 初始化 FSD Client
+        self.fsd_client = None
+        
+        return scroll_area
+    
+
+    
+    def on_connect_xplane(self):
+        """连接到 X-Plane"""
+        if not XPLANE_TCP_AVAILABLE:
+            self.show_notification("X-Plane TCP 客户端模块不可用")
+            return
+        
+        # 获取或创建连接器
+        if self.xplane_connector is None:
+            self.xplane_connector = get_xplane_tcp_client()
+            # 连接信号
+            self.xplane_connector.connected.connect(self.on_xplane_connected)
+            self.xplane_connector.disconnected.connect(self.on_xplane_disconnected)
+            self.xplane_connector.flight_data_received.connect(self.on_xplane_data_received)
+            self.xplane_connector.error_occurred.connect(self.on_xplane_connection_error)
+        
+        # 尝试连接
+        self.connect_btn.setEnabled(False)
+        self.connection_status_label.setText("🟡 连接中...")
+        self.connection_status_label.setStyleSheet("color: #f39c12; padding: 10px 0;")
+        self.connection_info_label.setText("正在连接到 X-Plane 插件...")
+        
+        # 在后台线程中连接
+        import threading
+        thread = threading.Thread(target=self._do_connect_xplane, daemon=True)
+        thread.start()
+    
+    def _do_connect_xplane(self):
+        """执行连接（在后台线程中）"""
+        try:
+            success = self.xplane_connector.connect_to_xplane()
+            if not success:
+                # 连接失败，在主线程中更新 UI
+                from PySide6.QtCore import QTimer
+                QTimer.singleShot(0, self._on_xplane_connect_failed)
+        except Exception as e:
+            logger.error(f"连接 X-Plane 异常: {e}")
+            from PySide6.QtCore import QTimer
+            self._connect_error_msg = str(e)
+            QTimer.singleShot(0, self._on_xplane_connect_error)
+    
+    def _on_xplane_connect_failed(self):
+        """连接失败回调（在主线程中）"""
+        self.connect_btn.setEnabled(True)
+        self.connection_status_label.setText("🔴 连接失败")
+        self.connection_status_label.setStyleSheet("color: #e74c3c; padding: 10px 0;")
+        self.connection_info_label.setText("连接失败，请检查 X-Plane 是否运行并加载了 ISFP Connect 插件")
+    
+    def _on_xplane_connect_error(self):
+        """连接错误回调（在主线程中）"""
+        error_msg = getattr(self, '_connect_error_msg', 'Unknown error')
+        self.connect_btn.setEnabled(True)
+        self.connection_status_label.setText("🔴 连接异常")
+        self.connection_status_label.setStyleSheet("color: #e74c3c; padding: 10px 0;")
+        self.connection_info_label.setText(f"连接异常: {error_msg}")
+    
+    def on_xplane_connected(self):
+        """X-Plane 已连接回调"""
+        self.connection_status_label.setText("🟢 已连接")
+        self.connection_status_label.setStyleSheet("color: #2ecc71; padding: 10px 0;")
+        self.connection_info_label.setText("已成功连接到 X-Plane")
+        self.connect_btn.setEnabled(False)
+        self.disconnect_btn.setEnabled(True)
+        self.show_notification("已成功连接到 X-Plane")
+    
+    def on_xplane_disconnected(self):
+        """X-Plane 断开连接回调"""
+        self.connection_status_label.setText("🔴 未连接")
+        self.connection_status_label.setStyleSheet("color: #e74c3c; padding: 10px 0;")
+        self.connection_info_label.setText('点击"连接"按钮连接到 X-Plane')
+        self.connect_btn.setEnabled(True)
+        self.disconnect_btn.setEnabled(False)
+    
+    def on_xplane_data_received(self, data):
+        """接收到 X-Plane 飞行数据"""
+        # 更新本机数据显示
+        data_text = f"""
+<b>位置:</b> {data.get('latitude', 0):.4f}°, {data.get('longitude', 0):.4f}°<br>
+<b>高度:</b> {data.get('altitude_msl', 0):.0f}ft / {data.get('altitude_agl', 0):.0f}ft AGL<br>
+<b>姿态:</b> P:{data.get('pitch', 0):.1f}° R:{data.get('roll', 0):.1f}° H:{data.get('heading', 0):.1f}°<br>
+<b>速度:</b> IAS:{data.get('indicated_airspeed', 0):.0f}kt GS:{data.get('groundspeed', 0):.0f}kt<br>
+<b>应答机:</b> {data.get('transponder', 0):04d}
+        """.strip()
+        self.own_data_label.setText(data_text)
+        
+        # 保存最新数据用于 FSD 位置更新
+        self._latest_xplane_data = data
+        
+        # 如果 FSD 已连接，更新位置数据
+        if FSD_AVAILABLE and self.fsd_client and hasattr(self.fsd_client, '_is_authenticated') and self.fsd_client._is_authenticated:
+            self._update_fsd_position(data)
+    
+    def on_disconnect_xplane(self):
+        """断开与 X-Plane 的连接"""
+        if self.xplane_connector:
+            self.xplane_connector.disconnect()
+            self.show_notification("已断开与 X-Plane 的连接")
+    
+    def _update_fsd_position(self, data):
+        """更新 FSD 位置数据"""
+        try:
+            from fsd_client import FSDPilotPosition, TransponderMode
+            
+            # 从 X-Plane 数据创建 FSD 位置对象
+            # 注意：FSDPilotPosition 使用 bank 而不是 roll
+            altitude_msl = data.get('altitude_msl', 0)
+            position = FSDPilotPosition(
+                latitude=data.get('latitude', 0),
+                longitude=data.get('longitude', 0),
+                altitude_true=int(altitude_msl),
+                altitude_pressure=int(altitude_msl),  # 使用 MSL 高度作为气压高度
+                groundspeed=int(data.get('groundspeed', 0)),
+                pitch=data.get('pitch', 0),
+                bank=data.get('roll', 0),  # roll 对应 bank
+                heading=data.get('heading', 0),
+                on_ground=data.get('on_ground', False)
+            )
+            
+            # 获取应答机代码和模式
+            transponder = data.get('transponder', 1200)
+            transponder_mode = TransponderMode.ON  # 默认 Mode C (ON)
+            
+            # 更新 FSD 客户端位置
+            self.fsd_client.update_position(
+                position=position,
+                transponder_code=transponder,
+                transponder_mode=transponder_mode
+            )
+            
+            logger.debug(f"FSD 位置已更新: lat={position.latitude:.4f}, lon={position.longitude:.4f}, alt={position.altitude_true}")
+        except Exception as e:
+            logger.debug(f"更新 FSD 位置失败: {e}")
+    
+    def on_xplane_connection_error(self, error_msg):
+        """X-Plane 连接错误回调"""
+        self.show_notification(f"X-Plane 连接错误: {error_msg}")
+        self.connection_info_label.setText(f"错误: {error_msg}")
+    
+    def update_connection_ui(self):
+        """更新连接页面 UI"""
+        if not XPLANE_TCP_AVAILABLE or not self.xplane_connector:
+            return
+        
+        # 更新连接状态
+        if self.xplane_connector.is_connected():
+            self.connection_status_label.setText("🟢 已连接")
+            self.connection_status_label.setStyleSheet("color: #2ecc71; padding: 10px 0;")
+        else:
+            self.connection_status_label.setText("🔴 未连接")
+            self.connection_status_label.setStyleSheet("color: #e74c3c; padding: 10px 0;")
+    
+    # ==================== FSD 服务器连接方法 ====================
+    
+    def on_connect_fsd(self):
+        """连接到 FSD 服务器"""
+        from PySide6.QtWidgets import QMessageBox
+        
+        if not FSD_AVAILABLE:
+            self.show_notification("FSD 模块不可用")
+            return
+        
+        # 检查是否已连接 X-Plane 模拟器
+        if not self.xplane_connector or not self.xplane_connector.is_connected:
+            QMessageBox.warning(self, "无法连接", "请先连接 X-Plane 模拟器后再连接 FSD 服务器。")
+            return
+        
+        # 获取连接参数（服务器和端口固定）
+        server = self.fsd_server
+        port = self.fsd_port
+        callsign = self.fsd_callsign_input.text().strip().upper()
+        real_name = self.fsd_realname_input.text().strip()
+        
+        # 自动检测 X-Plane 版本并转换为 FSD sim_type
+        # X-Plane 11 = 15, X-Plane 12 = 16
+        xp_version = self.xplane_connector.get_simulator_version()
+        sim_type = 15 if xp_version == 11 else 16
+        
+        if not callsign:
+            self.show_notification("请输入呼号")
+            return
+        
+        if not real_name:
+            self.show_notification("请输入真实姓名")
+            return
+        
+        # 获取用户凭证
+        cid = ""
+        password = ""
+        if self.user_data:
+            cid = str(self.user_data.get('user', {}).get('cid', ''))
+            password = self.settings.value("password", "")
+        
+        if not cid or not password:
+            self.show_notification("请先登录以获取 CID 和密码")
+            return
+        
+        # 获取或创建 FSD 客户端
+        if self.fsd_client is None:
+            self.fsd_client = get_fsd_client(self)
+            # 连接信号
+            self.fsd_client.connected.connect(self.on_fsd_connected)
+            self.fsd_client.disconnected.connect(self.on_fsd_disconnected)
+            self.fsd_client.error.connect(self.on_fsd_error)
+            self.fsd_client.text_message_received.connect(self.on_fsd_text_message)
+            self.fsd_client.server_error.connect(self.on_fsd_server_error)
+        
+        # 设置认证信息
+        self.fsd_client._callsign = callsign
+        self.fsd_client._cid = cid
+        self.fsd_client._password = password
+        self.fsd_client._real_name = real_name
+        self.fsd_client._sim_type = sim_type
+        
+        # 更新 UI
+        self.fsd_status_label.setText("🟡 连接中...")
+        self.fsd_status_label.setStyleSheet("color: #f39c12; padding: 10px 0;")
+        self.fsd_info_label.setText(f"正在连接到 {server}:{port}...")
+        self.fsd_connect_btn.setEnabled(False)
+        
+        # 尝试连接
+        try:
+            success = self.fsd_client.connect_to_server(server, port)
+            if success:
+                self._append_fsd_message(f"已连接到服务器 {server}:{port}")
+                self._append_fsd_message("等待服务器识别...")
+            else:
+                self.fsd_status_label.setText("🔴 连接失败")
+                self.fsd_status_label.setStyleSheet("color: #e74c3c; padding: 10px 0;")
+                self.fsd_info_label.setText("连接失败，请检查服务器地址和端口")
+                self.fsd_connect_btn.setEnabled(True)
+        except Exception as e:
+            logger.error(f"连接 FSD 服务器异常: {e}")
+            self.fsd_status_label.setText("🔴 连接异常")
+            self.fsd_status_label.setStyleSheet("color: #e74c3c; padding: 10px 0;")
+            self.fsd_info_label.setText(f"连接异常: {str(e)}")
+            self.fsd_connect_btn.setEnabled(True)
+    
+    def on_disconnect_fsd(self):
+        """断开 FSD 服务器连接"""
+        if self.fsd_client:
+            self.fsd_client.disconnect_from_server()
+            self._append_fsd_message("已断开与 FSD 服务器的连接")
+    
+    def on_fsd_connected(self):
+        """FSD 连接成功"""
+        self.fsd_status_label.setText("🟢 已连接")
+        self.fsd_status_label.setStyleSheet("color: #2ecc71; padding: 10px 0;")
+        self.fsd_info_label.setText(f"已连接到 FSD 服务器，呼号: {self.fsd_client._callsign}")
+        self.fsd_connect_btn.setEnabled(False)
+        self.fsd_disconnect_btn.setEnabled(True)
+        self.show_notification("已连接到 FSD 服务器")
+        
+        # 启动定期位置更新（每 5 秒）
+        self.fsd_client.start_position_updates(5000)
+        logger.info("FSD 位置更新已启动（每 5 秒）")
+        
+        # 立即发送一次当前位置数据（如果有）
+        if hasattr(self, '_latest_xplane_data') and self._latest_xplane_data:
+            self._update_fsd_position(self._latest_xplane_data)
+            logger.info("FSD 连接成功，已发送初始位置数据")
+    
+    def on_fsd_disconnected(self):
+        """FSD 断开连接"""
+        self.fsd_status_label.setText("🔴 未连接")
+        self.fsd_status_label.setStyleSheet("color: #e74c3c; padding: 10px 0;")
+        self.fsd_info_label.setText('点击"连接服务器"按钮连接到 FSD')
+        self.fsd_connect_btn.setEnabled(True)
+        self.fsd_disconnect_btn.setEnabled(False)
+        
+        # 停止位置更新
+        if self.fsd_client:
+            self.fsd_client.stop_position_updates()
+            logger.info("FSD 位置更新已停止")
+    
+    def on_fsd_error(self, error_msg):
+        """FSD 错误处理"""
+        self._append_fsd_message(f"[错误] {error_msg}")
+        self.show_notification(f"FSD 错误: {error_msg}")
+    
+    def on_fsd_text_message(self, sender, receiver, message):
+        """收到 FSD 文本消息 - 显示在信息栏目、播放提示音、展示在灵动岛"""
+        # 显示在信息栏目
+        self._append_fsd_info_message(f"[{sender}] {message}")
+        
+        # 播放提示音
+        self._play_message_sound()
+        
+        # 在灵动岛展示消息（5秒）
+        try:
+            from dynamic_island import get_dynamic_island
+            island = get_dynamic_island(self)
+            if island and island.is_enabled:
+                # 截断消息如果太长
+                display_msg = message[:30] + "..." if len(message) > 30 else message
+                island.show_message(f"📨 {sender}: {display_msg}", duration=5000)
+        except Exception as e:
+            logger.debug(f"灵动岛显示消息失败: {e}")
+    
+    def _play_message_sound(self):
+        """播放消息提示音"""
+        try:
+            from PySide6.QtMultimedia import QSoundEffect
+            from PySide6.QtCore import QUrl
+            
+            # 创建提示音
+            sound = QSoundEffect(self)
+            sound.setSource(QUrl.fromLocalFile("assets/message.wav"))
+            sound.setVolume(0.5)
+            sound.play()
+        except Exception as e:
+            # 如果播放失败（没有音频文件或不支持），使用系统提示音
+            try:
+                from PySide6.QtWidgets import QApplication
+                QApplication.beep()
+            except:
+                pass
+    
+    def on_fsd_server_error(self, error_type, message):
+        """收到 FSD 服务器错误 - 显示在信息栏目"""
+        self._append_fsd_info_message(f"[服务器错误 - {error_type}] {message}")
+    
+    def _append_fsd_message(self, message):
+        """添加日志到 FSD 日志显示区（连接日志）"""
+        if hasattr(self, 'fsd_messages'):
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.fsd_messages.append(f"[{timestamp}] {message}")
+            # 滚动到底部
+            scrollbar = self.fsd_messages.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
+    
+    def _append_fsd_info_message(self, message):
+        """添加消息到 FSD 信息栏目（文本消息）"""
+        if hasattr(self, 'fsd_info_messages'):
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            self.fsd_info_messages.append(f"[{timestamp}] {message}")
+            # 滚动到底部
+            scrollbar = self.fsd_info_messages.verticalScrollBar()
+            scrollbar.setValue(scrollbar.maximum())
+
     def create_account_tab(self):
         self.account_widget = QWidget()
         self.account_layout = QVBoxLayout(self.account_widget)
@@ -4164,6 +5028,41 @@ class ISFPApp(QMainWindow):
         log_info.setStyleSheet("color: #7f8c8d; font-size: 11px;")
         log_layout.addWidget(log_info)
         
+        # 分隔线
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setStyleSheet("background: rgba(255,255,255,0.1); margin: 10px 0;")
+        log_layout.addWidget(separator)
+        
+        # 连线日志开关
+        self.connection_log_switch = QCheckBox("启用连线日志记录 (connect.log)")
+        self.connection_log_switch.setChecked(self.settings.value("connection_log_enabled", True, type=bool))
+        self.connection_log_switch.setStyleSheet("""
+            QCheckBox {
+                color: #bdc3c7;
+                font-size: 13px;
+                spacing: 8px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                border: 2px solid rgba(255,255,255,0.3);
+                background: rgba(0,0,0,0.3);
+            }
+            QCheckBox::indicator:checked {
+                background: #27ae60;
+                border: 2px solid #27ae60;
+                image: none;
+            }
+        """)
+        self.connection_log_switch.stateChanged.connect(self.on_connection_log_switch_changed)
+        log_layout.addWidget(self.connection_log_switch)
+        
+        connection_log_info = QLabel("记录 FSD 和 XSwiftBus 的详细通信日志")
+        connection_log_info.setStyleSheet("color: #7f8c8d; font-size: 11px;")
+        log_layout.addWidget(connection_log_info)
+        
         # 清空日志按钮
         clear_log_btn = QPushButton("🗑 清空日志")
         clear_log_btn.setStyleSheet("""
@@ -4371,6 +5270,223 @@ class ISFPApp(QMainWindow):
         
         scroll_layout.addWidget(bg_group)
         
+        # ===== 4. 灵动岛设置 =====
+        island_group = QGroupBox("🏝 灵动岛设置")
+        island_group.setStyleSheet("""
+            QGroupBox {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 10px;
+                margin-top: 15px;
+                padding-top: 15px;
+                background: rgba(0, 0, 0, 0.2);
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 10px;
+            }
+        """)
+        island_layout = QVBoxLayout(island_group)
+        island_layout.setSpacing(10)
+        
+        # 灵动岛开关
+        self.island_switch = QCheckBox("启用灵动岛")
+        self.island_switch.setChecked(self.settings.value("dynamic_island_enabled", False, type=bool))
+        self.island_switch.setStyleSheet("""
+            QCheckBox {
+                color: #bdc3c7;
+                font-size: 13px;
+                spacing: 8px;
+            }
+            QCheckBox::indicator {
+                width: 18px;
+                height: 18px;
+                border-radius: 4px;
+                border: 2px solid rgba(255,255,255,0.3);
+                background: rgba(0,0,0,0.3);
+            }
+            QCheckBox::indicator:checked {
+                background: #27ae60;
+                border: 2px solid #27ae60;
+                image: none;
+            }
+        """)
+        self.island_switch.stateChanged.connect(self.on_island_switch_changed)
+        island_layout.addWidget(self.island_switch)
+        
+        # 灵动岛说明
+        island_info = QLabel("灵动岛是个好东西~")
+        island_info.setStyleSheet("color: #7f8c8d; font-size: 11px;")
+        island_layout.addWidget(island_info)
+        
+        # 编辑位置按钮
+        self.edit_island_pos_btn = QPushButton("📍 编辑位置")
+        self.edit_island_pos_btn.setStyleSheet("""
+            QPushButton {
+                background: #3498db;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                border: none;
+                margin-top: 10px;
+            }
+            QPushButton:hover {
+                background: #2980b9;
+            }
+            QPushButton:disabled {
+                background: #7f8c8d;
+            }
+        """)
+        self.edit_island_pos_btn.clicked.connect(self.on_edit_island_position)
+        self.edit_island_pos_btn.setEnabled(self.island_switch.isChecked())
+        island_layout.addWidget(self.edit_island_pos_btn)
+        
+        scroll_layout.addWidget(island_group)
+        
+        # ===== 5. X-Plane 插件管理 =====
+        xplane_group = QGroupBox("✈ X-Plane 插件管理")
+        xplane_group.setStyleSheet("""
+            QGroupBox {
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 10px;
+                margin-top: 15px;
+                padding-top: 15px;
+                background: rgba(0, 0, 0, 0.2);
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 15px;
+                padding: 0 10px;
+            }
+            QLabel {
+                color: #bdc3c7;
+                font-size: 13px;
+            }
+        """)
+        xplane_layout = QVBoxLayout(xplane_group)
+        xplane_layout.setSpacing(15)
+        
+        # 当前路径显示
+        self.xplane_path_label = QLabel("当前路径: 未设置")
+        self.xplane_path_label.setStyleSheet("color: #bdc3c7; font-size: 13px;")
+        xplane_layout.addWidget(self.xplane_path_label)
+        
+        # 检测版本显示
+        self.xplane_version_label = QLabel("检测版本: 未知")
+        self.xplane_version_label.setStyleSheet("color: #bdc3c7; font-size: 13px;")
+        xplane_layout.addWidget(self.xplane_version_label)
+        
+        # 插件状态显示
+        self.plugin_status_label = QLabel("插件状态: 未检测")
+        self.plugin_status_label.setStyleSheet("color: #bdc3c7; font-size: 13px;")
+        xplane_layout.addWidget(self.plugin_status_label)
+        
+        # 按钮区域
+        xplane_btn_layout = QHBoxLayout()
+        
+        # 选择路径按钮
+        select_path_btn = QPushButton("📁 选择 X-Plane 路径")
+        select_path_btn.setStyleSheet("""
+            QPushButton {
+                background: #3498db;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                border: none;
+            }
+            QPushButton:hover {
+                background: #2980b9;
+            }
+        """)
+        select_path_btn.clicked.connect(self.on_select_xplane_path)
+        xplane_btn_layout.addWidget(select_path_btn)
+        
+        # 自动检测按钮
+        auto_detect_btn = QPushButton("🔍 自动检测")
+        auto_detect_btn.setStyleSheet("""
+            QPushButton {
+                background: #9b59b6;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                border: none;
+            }
+            QPushButton:hover {
+                background: #8e44ad;
+            }
+        """)
+        auto_detect_btn.clicked.connect(self.on_auto_detect_xplane)
+        xplane_btn_layout.addWidget(auto_detect_btn)
+        
+        xplane_layout.addLayout(xplane_btn_layout)
+        
+        # 安装/卸载按钮区域
+        plugin_btn_layout = QHBoxLayout()
+        
+        # 安装插件按钮
+        self.install_plugin_btn = QPushButton("⬇ 安装插件")
+        self.install_plugin_btn.setStyleSheet("""
+            QPushButton {
+                background: #27ae60;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                border: none;
+            }
+            QPushButton:hover {
+                background: #2ecc71;
+            }
+            QPushButton:disabled {
+                background: #7f8c8d;
+            }
+        """)
+        self.install_plugin_btn.clicked.connect(self.on_install_plugin)
+        plugin_btn_layout.addWidget(self.install_plugin_btn)
+        
+        # 卸载插件按钮
+        self.uninstall_plugin_btn = QPushButton("🗑 卸载插件")
+        self.uninstall_plugin_btn.setStyleSheet("""
+            QPushButton {
+                background: #e74c3c;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-size: 13px;
+                border: none;
+            }
+            QPushButton:hover {
+                background: #c0392b;
+            }
+            QPushButton:disabled {
+                background: #7f8c8d;
+            }
+        """)
+        self.uninstall_plugin_btn.clicked.connect(self.on_uninstall_plugin)
+        plugin_btn_layout.addWidget(self.uninstall_plugin_btn)
+        
+        xplane_layout.addLayout(plugin_btn_layout)
+        
+        # 提示信息
+        plugin_tip = QLabel("提示: 选择 X-Plane 安装目录后，可以自动安装或卸载 ISFP Connect 插件")
+        plugin_tip.setStyleSheet("color: #7f8c8d; font-size: 11px;")
+        plugin_tip.setWordWrap(True)
+        xplane_layout.addWidget(plugin_tip)
+        
+        scroll_layout.addWidget(xplane_group)
+        
+        # 更新插件 UI 状态
+        self._update_plugin_ui_status()
+        
         scroll_layout.addStretch()
         scroll.setWidget(scroll_content)
         layout.addWidget(scroll)
@@ -4390,6 +5506,23 @@ class ISFPApp(QMainWindow):
         else:
             root_logger.setLevel(logging.CRITICAL + 1)  # 禁用所有日志
             self.show_notification("日志记录已禁用")
+    
+    def on_connection_log_switch_changed(self, state):
+        """连线日志开关状态改变"""
+        enabled = bool(state)
+        self.settings.setValue("connection_log_enabled", enabled)
+        
+        # 导入连线日志模块
+        try:
+            from connection_logger import enable_connection_logging, disable_connection_logging
+            if enabled:
+                enable_connection_logging()
+                self.show_notification("连线日志已启用 (logs/connect.log)")
+            else:
+                disable_connection_logging()
+                self.show_notification("连线日志已禁用")
+        except ImportError:
+            self.show_notification("连线日志模块未加载")
 
     def on_save_account_settings(self):
         """保存账号密码设置"""
@@ -4413,6 +5546,75 @@ class ISFPApp(QMainWindow):
         # 更新显示
         current_user = self.settings.value("username", "未保存")
         self.current_user_label.setText(f"当前保存的账号: {current_user}")
+    
+    def _update_plugin_ui_status(self):
+        """更新插件管理 UI 状态"""
+        if not hasattr(self, 'plugin_manager') or self.plugin_manager is None:
+            self.xplane_path_label.setText("当前路径: 插件管理器未加载")
+            self.xplane_version_label.setText("检测版本: 未知")
+            self.plugin_status_label.setText("插件状态: 未知")
+            self.install_plugin_btn.setEnabled(False)
+            self.uninstall_plugin_btn.setEnabled(False)
+            return
+        
+        # 更新路径显示
+        path = self.plugin_manager.get_xplane_path()
+        if path:
+            self.xplane_path_label.setText(f"当前路径: {path}")
+            self.xplane_version_label.setText(f"检测版本: X-Plane {self.plugin_manager.get_version()}")
+            self.install_plugin_btn.setEnabled(True)
+        else:
+            self.xplane_path_label.setText("当前路径: 未设置")
+            self.xplane_version_label.setText("检测版本: 未知")
+            self.install_plugin_btn.setEnabled(False)
+        
+        # 更新插件状态
+        if self.plugin_manager.is_plugin_installed():
+            self.plugin_status_label.setText("插件状态: ✅ 已安装")
+            self.install_plugin_btn.setText("⬇ 重新安装")
+            self.uninstall_plugin_btn.setEnabled(True)
+        else:
+            self.plugin_status_label.setText("插件状态: ❌ 未安装")
+            self.install_plugin_btn.setText("⬇ 安装插件")
+            self.uninstall_plugin_btn.setEnabled(False)
+    
+    def on_select_xplane_path(self):
+        """选择 X-Plane 路径按钮点击"""
+        if self.plugin_manager:
+            path = self.plugin_manager.select_xplane_path(self)
+            if path:
+                self.show_notification(f"已选择 X-Plane 路径: {path}")
+                self._update_plugin_ui_status()
+        else:
+            self.show_notification("插件管理器未加载")
+    
+    def on_auto_detect_xplane(self):
+        """自动检测 X-Plane 路径按钮点击"""
+        if self.plugin_manager:
+            path = self.plugin_manager.auto_detect_path()
+            if path:
+                self.show_notification(f"自动检测到 X-Plane: {path}")
+                self._update_plugin_ui_status()
+            else:
+                self.show_notification("未找到 X-Plane 安装目录，请手动选择")
+        else:
+            self.show_notification("插件管理器未加载")
+    
+    def on_install_plugin(self):
+        """安装插件按钮点击"""
+        if self.plugin_manager:
+            success, message = self.plugin_manager.install_plugin(self)
+            # 结果显示通过信号处理
+        else:
+            self.show_notification("插件管理器未加载")
+    
+    def on_uninstall_plugin(self):
+        """卸载插件按钮点击"""
+        if self.plugin_manager:
+            success, message = self.plugin_manager.uninstall_plugin(self)
+            # 结果显示通过信号处理
+        else:
+            self.show_notification("插件管理器未加载")
         
         # 如果已登录，提示需要重新登录
         if self.auth_token:
@@ -4462,15 +5664,77 @@ class ISFPApp(QMainWindow):
         self.apply_background()
         self.show_notification("已恢复默认背景")
 
+    def on_island_switch_changed(self, state):
+        """灵动岛开关状态改变"""
+        enabled = bool(state)
+        self.settings.setValue("dynamic_island_enabled", enabled)
+        
+        # 更新编辑位置按钮状态
+        self.edit_island_pos_btn.setEnabled(enabled)
+        
+        # 获取或创建灵动岛实例
+        try:
+            from dynamic_island import get_dynamic_island
+            island = get_dynamic_island(self)
+            island.set_enabled(enabled)
+            
+            if enabled:
+                self.show_notification("灵动岛已启用")
+            else:
+                self.show_notification("灵动岛已禁用")
+        except ImportError:
+            self.show_notification("灵动岛模块未找到")
+    
+    def on_edit_island_position(self):
+        """编辑灵动岛位置"""
+        try:
+            from dynamic_island import get_dynamic_island, DynamicIslandEditor
+            island = get_dynamic_island(self)
+            
+            # 创建编辑器并开始编辑
+            self.island_editor = DynamicIslandEditor(island, self)
+            self.island_editor.saved.connect(lambda: self.show_notification("灵动岛位置已保存"))
+            self.island_editor.cancelled.connect(lambda: self.show_notification("已取消编辑"))
+            self.island_editor.start_editing()
+        except ImportError:
+            self.show_notification("灵动岛模块未找到")
+    
     def on_clear_log(self):
         """清空日志文件"""
-        log_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs', 'main.log')
+        logs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+        
+        # 清空 main.log
+        log_file = os.path.join(logs_dir, 'main.log')
         try:
             with open(log_file, 'w', encoding='utf-8') as f:
                 f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [INFO] 日志已清空\n")
-            self.show_notification("日志已清空")
+            main_log_cleared = True
         except Exception as e:
-            self.show_notification(f"清空日志失败: {str(e)}")
+            main_log_cleared = False
+            main_log_error = str(e)
+        
+        # 清空 connect.log
+        connect_log_file = os.path.join(logs_dir, 'connect.log')
+        try:
+            if os.path.exists(connect_log_file):
+                with open(connect_log_file, 'w', encoding='utf-8') as f:
+                    f.write(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [INFO] 连线日志已清空\n")
+                connect_log_cleared = True
+            else:
+                connect_log_cleared = True  # 文件不存在也算成功
+        except Exception as e:
+            connect_log_cleared = False
+            connect_log_error = str(e)
+        
+        # 显示通知
+        if main_log_cleared and connect_log_cleared:
+            self.show_notification("日志已清空 (main.log 和 connect.log)")
+        elif main_log_cleared:
+            self.show_notification(f"main.log 已清空，connect.log 清空失败: {connect_log_error}")
+        elif connect_log_cleared:
+            self.show_notification(f"connect.log 已清空，main.log 清空失败: {main_log_error}")
+        else:
+            self.show_notification(f"清空日志失败: {main_log_error}")
 
     def update_bg_preview(self):
         """更新背景预览"""
@@ -4898,15 +6162,9 @@ class ISFPApp(QMainWindow):
         self.plan_fields['equipment'] = QLineEdit()
         self.plan_fields['equipment'].setPlaceholderText("SDE1E2E3FGHIJ1RWXY/LB1")
         
-        self.plan_fields['transponder'] = QLineEdit()
-        self.plan_fields['transponder'].setPlaceholderText("1000")
-        self.plan_fields['transponder'].setMaxLength(4)
-        
         # Row 1
         form_layout.addWidget(QLabel("机载设备:"), 1, 0)
-        form_layout.addWidget(self.plan_fields['equipment'], 1, 1, 1, 3) # 跨3列
-        form_layout.addWidget(QLabel("应答机:"), 1, 4)
-        form_layout.addWidget(self.plan_fields['transponder'], 1, 5)
+        form_layout.addWidget(self.plan_fields['equipment'], 1, 1, 1, 5) # 跨5列
         
         # 3. 巡航信息
         
@@ -4919,11 +6177,11 @@ class ISFPApp(QMainWindow):
         self.plan_fields['dep_time'].setButtonSymbols(QAbstractSpinBox.NoButtons)
         
         self.plan_fields['altitude'] = QLineEdit()
-        self.plan_fields['altitude'].setPlaceholderText("FL321")
+        self.plan_fields['altitude'].setPlaceholderText("32100")
 
         self.plan_fields['cruise_tas'] = QSpinBox()
         self.plan_fields['cruise_tas'].setRange(0, 9999)
-        self.plan_fields['cruise_tas'].setValue(450)
+        self.plan_fields['cruise_tas'].setValue(0)
         self.plan_fields['cruise_tas'].setButtonSymbols(QAbstractSpinBox.NoButtons)
         self.plan_fields['cruise_tas'].setSuffix(" kt")
 
@@ -4948,11 +6206,13 @@ class ISFPApp(QMainWindow):
 
         self.plan_fields['eet_h'] = QSpinBox()
         self.plan_fields['eet_h'].setRange(0, 99)
+        self.plan_fields['eet_h'].setValue(0)
         self.plan_fields['eet_h'].setSuffix(" h")
         self.plan_fields['eet_h'].setButtonSymbols(QAbstractSpinBox.NoButtons)
         
         self.plan_fields['eet_m'] = QSpinBox()
         self.plan_fields['eet_m'].setRange(0, 59)
+        self.plan_fields['eet_m'].setValue(0)
         self.plan_fields['eet_m'].setSuffix(" m")
         self.plan_fields['eet_m'].setButtonSymbols(QAbstractSpinBox.NoButtons)
         
@@ -4961,7 +6221,7 @@ class ISFPApp(QMainWindow):
         form_layout.addWidget(self.plan_fields['arr'], 3, 1)
         form_layout.addWidget(QLabel("备降机场:"), 3, 2)
         form_layout.addWidget(self.plan_fields['alt'], 3, 3)
-        form_layout.addWidget(QLabel("预计飞行时间:"), 3, 4)
+        form_layout.addWidget(QLabel("飞行时间:"), 3, 4)
         
         hbox_eet = QHBoxLayout()
         hbox_eet.addWidget(self.plan_fields['eet_h'])
@@ -4972,17 +6232,19 @@ class ISFPApp(QMainWindow):
         
         self.plan_fields['fuel_h'] = QSpinBox()
         self.plan_fields['fuel_h'].setRange(0, 99)
+        self.plan_fields['fuel_h'].setValue(0)
         self.plan_fields['fuel_h'].setSuffix(" h")
         self.plan_fields['fuel_h'].setButtonSymbols(QAbstractSpinBox.NoButtons)
         
         self.plan_fields['fuel_m'] = QSpinBox()
         self.plan_fields['fuel_m'].setRange(0, 59)
+        self.plan_fields['fuel_m'].setValue(0)
         self.plan_fields['fuel_m'].setSuffix(" m")
         self.plan_fields['fuel_m'].setButtonSymbols(QAbstractSpinBox.NoButtons)
         
         # Row 3 continued (Sharing row or new row? Let's use new row for fuel)
         # Row 4
-        form_layout.addWidget(QLabel("续航时间:"), 3, 6)
+        form_layout.addWidget(QLabel("滞空时间:"), 3, 6)
         hbox_fuel = QHBoxLayout()
         hbox_fuel.addWidget(self.plan_fields['fuel_h'])
         hbox_fuel.addWidget(self.plan_fields['fuel_m'])
@@ -4990,7 +6252,6 @@ class ISFPApp(QMainWindow):
 
         # 6. 航路
         self.plan_fields['route'] = QTextEdit()
-        self.plan_fields['route'].setPlaceholderText("DCT")
         self.plan_fields['route'].setMaximumHeight(100)
         
         # Row 5
@@ -5070,14 +6331,6 @@ class ISFPApp(QMainWindow):
             else:
                 self.plan_fields['equipment'].clear()
                 
-            # 解析 XPDR
-            xpdr_match = re.search(r'/XPDR/(\d{4})', raw_remarks)
-            if xpdr_match:
-                self.plan_fields['transponder'].setText(xpdr_match.group(1))
-                raw_remarks = raw_remarks.replace(xpdr_match.group(0), "").strip()
-            else:
-                self.plan_fields['transponder'].clear()
-            
             # 清理后的 remarks 回显
             self.plan_fields['remarks'].setText(raw_remarks)
             
@@ -5101,7 +6354,7 @@ class ISFPApp(QMainWindow):
             self.plan_fields['remarks'].setText(plan.get('remarks', ''))
             self.plan_fields['route'].setPlainText(plan.get('route', ''))
             
-            # 显示删除按钮，并将提交按钮改为“更新”
+            # 显示删除按钮，并将提交按钮改为"更新"
             self.delete_plan_btn.show()
             self.submit_plan_btn.setText("更新计划 (Update)")
             self.show_notification("已加载现有飞行计划")
@@ -5131,14 +6384,11 @@ class ISFPApp(QMainWindow):
             remarks_base = self.plan_fields['remarks'].text().strip().upper()
             wake = self.plan_fields['wake_turbulence'].currentText()[0] # L, M, H, J
             eqpt = self.plan_fields['equipment'].text().strip().upper()
-            xpdr = self.plan_fields['transponder'].text().strip()
             
             # 将这些额外字段追加到 remarks 中以便持久化
             final_remarks = f"{remarks_base} /WAKE/{wake}"
             if eqpt:
                 final_remarks += f" /EQPT/{eqpt}"
-            if xpdr:
-                final_remarks += f" /XPDR/{xpdr}"
             
             payload = {
                 "cid": int(cid),
@@ -5160,9 +6410,31 @@ class ISFPApp(QMainWindow):
                 "locked": False
             }
             
-            # 简单校验
-            if not payload['callsign'] or not payload['departure'] or not payload['arrival']:
-                self.show_notification("请填写完整的呼号、起降机场")
+            # 完整校验 - 除备降机场外所有字段必填
+            required_fields = {
+                'callsign': '呼号',
+                'flight_rules': '飞行规则',
+                'aircraft': '机型',
+                'cruise_tas': '巡航速度',
+                'departure': '起飞机场',
+                'departure_time': '起飞时间',
+                'altitude': '巡航高度',
+                'arrival': '目的地机场',
+                'route_time_hour': '飞行时间(小时)',
+                'route_time_minute': '飞行时间(分钟)',
+                'fuel_time_hour': '滞空时间(小时)',
+                'fuel_time_minute': '滞空时间(分钟)',
+                'route': '航路'
+            }
+            
+            missing_fields = []
+            for field, name in required_fields.items():
+                value = payload.get(field)
+                if value is None or (isinstance(value, str) and not value.strip()):
+                    missing_fields.append(name)
+            
+            if missing_fields:
+                self.show_notification(f"请填写以下必填项: {', '.join(missing_fields)}")
                 return
 
             self.submit_plan_thread = APIThread(
@@ -5171,10 +6443,12 @@ class ISFPApp(QMainWindow):
                 json_data=payload,
                 headers={"Authorization": f"Bearer {self.auth_token}"}
             )
-            self.submit_plan_thread.finished.connect(lambda d: [
-                self.show_notification(d.get('message', '操作完成')),
-                self.load_server_flight_plan() if d.get('code') == 'SUBMIT_FLIGHT_PLAN' else None
-            ])
+            def on_submit_finished(d):
+                self.show_notification(d.get('message', '操作完成'))
+                if d.get('code') == 'SUBMIT_FLIGHT_PLAN':
+                    self.load_server_flight_plan()
+            
+            self.submit_plan_thread.finished.connect(on_submit_finished)
             self.manage_thread(self.submit_plan_thread)
             
         except Exception as e:
@@ -5194,11 +6468,12 @@ class ISFPApp(QMainWindow):
             method="DELETE",
             headers={"Authorization": f"Bearer {self.auth_token}"}
         )
-        self.del_plan_thread.finished.connect(lambda d: [
-            self.show_notification(d.get('message', '操作完成')),
-            # 清空表单或重置状态
-            self.load_server_flight_plan() if d.get('code') == 'DELETE_SELF_FLIGHT_PLAN' else None
-        ])
+        def on_delete_finished(d):
+            self.show_notification(d.get('message', '操作完成'))
+            if d.get('code') == 'DELETE_SELF_FLIGHT_PLAN':
+                self.load_server_flight_plan()
+        
+        self.del_plan_thread.finished.connect(on_delete_finished)
         self.manage_thread(self.del_plan_thread)
 
     def load_empty_map(self):
@@ -5633,6 +6908,13 @@ if __name__ == "__main__":
         myappid = 'isfp.connect.app.v1'
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     except Exception:
+        pass
+
+    # 初始化默认连线日志
+    try:
+        from connection_logger import setup_connection_logging
+        setup_connection_logging(True)
+    except ImportError:
         pass
 
     app = QApplication(sys.argv)

@@ -1,0 +1,697 @@
+PS C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\build> cmake --build .
+CMake is re-running because C:/Users/quanquan/Documents/GitHub/ISFP-Connect/xplane-plugin/build/CMakeFiles/generate.stamp is out-of-date.
+  the file 'C:/Users/quanquan/Documents/GitHub/ISFP-Connect/xplane-plugin/CMakeLists.txt'
+  is newer than 'C:/Users/quanquan/Documents/GitHub/ISFP-Connect/xplane-plugin/build/CMakeFiles/generate.stamp.depend'
+  result='-1'
+-- Selecting Windows SDK version 10.0.26100.0 to target Windows 10.0.26200.
+CMake Warning (dev) at CMakeLists.txt:66 (install):
+  Policy CMP0177 is not set: install() DESTINATION paths are normalized.  Run
+  "cmake --help-policy CMP0177" for policy details.  Use the cmake_policy
+  command to set the policy and suppress this warning.
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- ISFP Connect Plugin Configuration:
+--   X-Plane SDK: C:/Users/quanquan/Documents/GitHub/ISFP-Connect/xplane-plugin/../XPSDK430/SDK
+--   Output: C:/Users/quanquan/Documents/GitHub/ISFP-Connect/xplane-plugin/build/ISFPConnect.dll
+--   Install: Resources/plugins/ISFPConnect/win_x64/
+-- Configuring done (0.0s)
+-- Generating done (0.2s)
+-- Build files have been written to: C:/Users/quanquan/Documents/GitHub/ISFP-Connect/xplane-plugin/build
+适用于 .NET Framework MSBuild 版本 18.4.0+6e61e96ac
+
+  1>Checking Build System
+  Building Custom Rule C:/Users/quanquan/Documents/GitHub/ISFP-Connect/xplane-plugin/CMakeLists.txt
+  plugin.cpp
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失 [C:\Users\quanquan\Doc
+uments\GitHub\ISFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(86,1): error C2059: 语法错误:“public” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(87,5): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISF
+P-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(88,6): error C2588: “::~NetworkManager”: 非法的全局 析构函数 [C:\Users\quanquan\Documents\GitHub\ISFP-Co
+nnect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(88,6): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISF
+P-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(95,10): error C2270: “IsConnected”: 非成员函数上不允许修饰符 [C:\Users\quanquan\Documents\GitHub\ISFP-Conne
+ct\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(95,39): error C2065: “connected_”: 未声明的标识符 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(100,42): error C2065: “auto_reconnect_”: 未声明的标识符 [C:\Users\quanquan\Documents\GitHub\ISFP-Conne
+ct\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(102,1): error C2059: 语法错误:“private” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plu
+gin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(122,1): error C2059: 语法错误:“public” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(123,5): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(124,6): error C2588: “::~DataRefManager”: 非法的全局 析构函数 [C:\Users\quanquan\Documents\GitHub\ISFP-C
+onnect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(124,6): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(129,5): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(129,16): error C2146: 语法错误: 缺少“;”(在标识符“GetFlightData”的前面) [C:\Users\quanquan\Documents\GitHub\I
+SFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(136,1): error C2059: 语法错误:“private” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plu
+gin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(161,1): error C2059: 语法错误:“}” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\bu
+ild\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(161,1): error C2143: 语法错误: 缺少“;”(在“}”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpla
+ne-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,22): error C2143: 语法错误: 缺少“;”(在“*”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,8): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\I
+SFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,22): error C2143: 语法错误: 缺少“;”(在“*”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,8): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,8): error C2365: “DataRefManager”: 重定义；以前的定义是“函数” [C:\Users\quanquan\Documents\GitHub\ISFP-
+Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(123,5):
+      参见“DataRefManager”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\I
+SFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(167,1): error C2059: 语法错误:“}” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\bu
+ild\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(167,1): error C2143: 语法错误: 缺少“;”(在“}”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpla
+ne-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\cmath(36,89): error C2143: 语法错误: 缺少“;”(在“{”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Co
+nnect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\cmath(36,89): error C2447: “{”: 缺少函数标题(是否是老式的形式表?) [C:\Users\quanquan\Documents\GitHub\ISFP
+-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/plugin.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,15): error C2143: 语法错误: 缺少“;”(在“*”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,1): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISFP-Conne
+ct\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,1): error C2365: “ISFP::NetworkManager”: 重定义；以前的定义是“函数” [C:\Users\quanquan\Documents\GitHub\ISFP-Co
+nnect\xplane-plugin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(87,5):
+      参见“ISFP::NetworkManager”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISFP-Conn
+ect\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,15): error C2143: 语法错误: 缺少“;”(在“*”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,1): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISFP-Conne
+ct\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,17): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISFP-Conn
+ect\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(47,5): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin
+\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(47,21): error C2061: 语法错误: 标识符“NetworkManager” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane
+-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(48,5): error C2872: “g_datarefs”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24):
+      可能是“int *g_datarefs”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,17):
+      或  “int *ISFP::g_datarefs”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(48,22): error C2061: 语法错误: 标识符“DataRefManager” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane
+-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(51,10): error C2872: “g_datarefs”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24):
+      可能是“int *g_datarefs”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,17):
+      或  “int *ISFP::g_datarefs”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(57,10): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(59,16): error C2872: “g_datarefs”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24):
+      可能是“int *g_datarefs”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,17):
+      或  “int *ISFP::g_datarefs”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(60,16): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(88,9): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin
+\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(89,9): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin
+\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(90,16): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(91,9): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin
+\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(94,9): error C2872: “g_datarefs”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24):
+      可能是“int *g_datarefs”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,17):
+      或  “int *ISFP::g_datarefs”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(95,9): error C2872: “g_datarefs”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24):
+      可能是“int *g_datarefs”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,17):
+      或  “int *ISFP::g_datarefs”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(96,16): error C2872: “g_datarefs”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24):
+      可能是“int *g_datarefs”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,17):
+      或  “int *ISFP::g_datarefs”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(97,9): error C2872: “g_datarefs”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24):
+      可能是“int *g_datarefs”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,17):
+      或  “int *ISFP::g_datarefs”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(109,9): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(109,23): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(110,14): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(130,9): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(131,9): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(160,31): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(160,45): error C2872: “g_datarefs”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plu
+gin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24):
+      可能是“int *g_datarefs”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,17):
+      或  “int *ISFP::g_datarefs”
+
+  network.cpp
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(165,5): error C2872: “FlightData”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(129,5):
+      可能是“int FlightData”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(43,8):
+      或    “ISFP::FlightData”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(165,16): error C2146: 语法错误: 缺少“;”(在标识符“data”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpla
+ne-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(165,16): error C2065: “data”: 未声明的标识符 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\b
+uild\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(165,23): error C2872: “g_datarefs”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plu
+gin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24):
+      可能是“int *g_datarefs”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(22,17):
+      或  “int *ISFP::g_datarefs”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(168,9): error C2065: “data”: 未声明的标识符 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\bu
+ild\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(168,23): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(169,9): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(169,29): error C2065: “data”: 未声明的标识符 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\b
+uild\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(173,10): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(179,13): error C2872: “g_network”: 不明确的符号 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24):
+      可能是“int *g_network”
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\plugin.cpp(21,17):
+      或  “int *ISFP::g_network”
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失 [C:\Users\quanquan\Doc
+uments\GitHub\ISFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(86,1): error C2059: 语法错误:“public” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(87,5): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISF
+P-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(88,6): error C2588: “::~NetworkManager”: 非法的全局 析构函数 [C:\Users\quanquan\Documents\GitHub\ISFP-Co
+nnect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(88,6): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISF
+P-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(95,10): error C2270: “IsConnected”: 非成员函数上不允许修饰符 [C:\Users\quanquan\Documents\GitHub\ISFP-Conne
+ct\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(95,39): error C2065: “connected_”: 未声明的标识符 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(100,42): error C2065: “auto_reconnect_”: 未声明的标识符 [C:\Users\quanquan\Documents\GitHub\ISFP-Conne
+ct\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(102,1): error C2059: 语法错误:“private” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plu
+gin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(122,1): error C2059: 语法错误:“public” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(123,5): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(124,6): error C2588: “::~DataRefManager”: 非法的全局 析构函数 [C:\Users\quanquan\Documents\GitHub\ISFP-C
+onnect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(124,6): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(129,5): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(129,16): error C2146: 语法错误: 缺少“;”(在标识符“GetFlightData”的前面) [C:\Users\quanquan\Documents\GitHub\I
+SFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(136,1): error C2059: 语法错误:“private” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plu
+gin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(161,1): error C2059: 语法错误:“}” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\bu
+ild\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(161,1): error C2143: 语法错误: 缺少“;”(在“}”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpla
+ne-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,22): error C2143: 语法错误: 缺少“;”(在“*”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,8): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\I
+SFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,22): error C2143: 语法错误: 缺少“;”(在“*”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,8): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,8): error C2365: “DataRefManager”: 重定义；以前的定义是“函数” [C:\Users\quanquan\Documents\GitHub\ISFP-
+Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(123,5):
+      参见“DataRefManager”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\I
+SFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(167,1): error C2059: 语法错误:“}” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\bu
+ild\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(167,1): error C2143: 语法错误: 缺少“;”(在“}”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpla
+ne-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\cmath(36,89): error C2143: 语法错误: 缺少“;”(在“{”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Co
+nnect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\cmath(36,89): error C2447: “{”: 缺少函数标题(是否是老式的形式表?) [C:\Users\quanquan\Documents\GitHub\ISFP
+-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/network.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(13,1): error C2653: “NetworkManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(13,17): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISFP-Con
+nect\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(19,31): error C2550: “ISFP::NetworkManager”: 构造函数初始值设定项列表只能在构造函数定义中使用 [C:\Users\quanquan\Documents\Gi
+tHub\ISFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(20,1): warning C4508: “ISFP::NetworkManager”: 函数应返回一个值；假定“void”返回类型 [C:\Users\quanquan\Documents\GitH
+ub\ISFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(22,1): error C2653: “NetworkManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(22,18): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISFP-Con
+nect\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(24,1): warning C4508: “ISFP::{dtor}”: 函数应返回一个值；假定“void”返回类型 [C:\Users\quanquan\Documents\GitHub\ISFP-
+Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(26,6): error C2653: “NetworkManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(41,6): error C2653: “NetworkManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(54,6): error C2653: “NetworkManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(140,6): error C2653: “NetworkManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xp
+lane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(152,6): error C2653: “NetworkManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xp
+lane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(166,34): error C2039: "pitch": 不是 "ISFP::FlightData" 的成员 [C:\Users\quanquan\Documents\GitHub\ISFP-Con
+nect\xplane-plugin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(43,8):
+      参见“ISFP::FlightData”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(177,38): error C2039: "com1_freq": 不是 "ISFP::FlightData" 的成员 [C:\Users\quanquan\Documents\GitHub\ISFP
+-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(43,8):
+      参见“ISFP::FlightData”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(180,40): error C2039: "gear_deploy": 不是 "ISFP::FlightData" 的成员 [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(43,8):
+      参见“ISFP::FlightData”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(182,43): error C2039: "throttle_ratio": 不是 "ISFP::FlightData" 的成员 [C:\Users\quanquan\Documents\GitHub
+\ISFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(43,8):
+      参见“ISFP::FlightData”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\network.cpp(206,6): error C2653: “NetworkManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xp
+lane-plugin\build\ISFPConnect.vcxproj]
+  datarefs.cpp
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(1,1): warning C4819: 该文件包含不能在当前代码页(936)中表示的字符。请将该文件保存为 Unicode 格式以防止数据丢失 [C:\Users\quanquan\Doc
+uments\GitHub\ISFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(86,1): error C2059: 语法错误:“public” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugi
+n\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(87,5): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISF
+P-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(88,6): error C2588: “::~NetworkManager”: 非法的全局 析构函数 [C:\Users\quanquan\Documents\GitHub\ISFP-Co
+nnect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(88,6): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISF
+P-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(95,10): error C2270: “IsConnected”: 非成员函数上不允许修饰符 [C:\Users\quanquan\Documents\GitHub\ISFP-Conne
+ct\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(95,39): error C2065: “connected_”: 未声明的标识符 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(100,42): error C2065: “auto_reconnect_”: 未声明的标识符 [C:\Users\quanquan\Documents\GitHub\ISFP-Conne
+ct\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(102,1): error C2059: 语法错误:“private” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plu
+gin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(122,1): error C2059: 语法错误:“public” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plug
+in\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(123,5): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(124,6): error C2588: “::~DataRefManager”: 非法的全局 析构函数 [C:\Users\quanquan\Documents\GitHub\ISFP-C
+onnect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(124,6): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(129,5): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(129,16): error C2146: 语法错误: 缺少“;”(在标识符“GetFlightData”的前面) [C:\Users\quanquan\Documents\GitHub\I
+SFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(136,1): error C2059: 语法错误:“private” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plu
+gin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(161,1): error C2059: 语法错误:“}” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\bu
+ild\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(161,1): error C2143: 语法错误: 缺少“;”(在“}”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpla
+ne-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,22): error C2143: 语法错误: 缺少“;”(在“*”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,8): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(164,24): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\I
+SFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,22): error C2143: 语法错误: 缺少“;”(在“*”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpl
+ane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,8): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\IS
+FP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,8): error C2365: “DataRefManager”: 重定义；以前的定义是“函数” [C:\Users\quanquan\Documents\GitHub\ISFP-
+Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(123,5):
+      参见“DataRefManager”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(165,24): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\I
+SFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(167,1): error C2059: 语法错误:“}” [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\bu
+ild\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(167,1): error C2143: 语法错误: 缺少“;”(在“}”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xpla
+ne-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\cmath(36,89): error C2143: 语法错误: 缺少“;”(在“{”的前面) [C:\Users\quanquan\Documents\GitHub\ISFP-Co
+nnect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\cmath(36,89): error C2447: “{”: 缺少函数标题(是否是老式的形式表?) [C:\Users\quanquan\Documents\GitHub\ISFP
+-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+  (编译源文件“../src/datarefs.cpp”)
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(11,1): error C2653: “DataRefManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xp
+lane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(11,17): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISFP-Co
+nnect\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(34,1): warning C4508: “ISFP::DataRefManager”: 函数应返回一个值；假定“void”返回类型 [C:\Users\quanquan\Documents\Git
+Hub\ISFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(36,1): error C2653: “DataRefManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xp
+lane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(36,18): error C4430: 缺少类型说明符 - 假定为 int。注意: C++ 不支持默认 int [C:\Users\quanquan\Documents\GitHub\ISFP-Co
+nnect\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(38,1): warning C4508: “ISFP::{dtor}”: 函数应返回一个值；假定“void”返回类型 [C:\Users\quanquan\Documents\GitHub\ISFP
+-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(40,6): error C2653: “DataRefManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xp
+lane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(46,6): error C2653: “DataRefManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xp
+lane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(50,6): error C2653: “DataRefManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xp
+lane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(91,12): error C2653: “DataRefManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\x
+plane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(107,10): error C2039: "pitch": 不是 "ISFP::FlightData" 的成员 [C:\Users\quanquan\Documents\GitHub\ISFP-Co
+nnect\xplane-plugin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(43,8):
+      参见“ISFP::FlightData”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(126,10): error C2039: "com1_freq": 不是 "ISFP::FlightData" 的成员 [C:\Users\quanquan\Documents\GitHub\ISF
+P-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(43,8):
+      参见“ISFP::FlightData”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(134,14): error C2039: "gear_deploy": 不是 "ISFP::FlightData" 的成员 [C:\Users\quanquan\Documents\GitHub\I
+SFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(43,8):
+      参见“ISFP::FlightData”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(136,14): error C2039: "gear_deploy": 不是 "ISFP::FlightData" 的成员 [C:\Users\quanquan\Documents\GitHub\I
+SFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(43,8):
+      参见“ISFP::FlightData”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(143,10): error C2039: "throttle_ratio": 不是 "ISFP::FlightData" 的成员 [C:\Users\quanquan\Documents\GitHu
+b\ISFP-Connect\xplane-plugin\build\ISFPConnect.vcxproj]
+      C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\include\isfp_plugin.h(43,8):
+      参见“ISFP::FlightData”的声明
+
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(149,6): error C2653: “DataRefManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\x
+plane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(155,6): error C2653: “DataRefManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\x
+plane-plugin\build\ISFPConnect.vcxproj]
+C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\src\datarefs.cpp(161,6): error C2653: “DataRefManager”: 不是类或命名空间名称 [C:\Users\quanquan\Documents\GitHub\ISFP-Connect\x
+plane-plugin\build\ISFPConnect.vcxproj]
+  正在生成代码...
+PS C:\Users\quanquan\Documents\GitHub\ISFP-Connect\xplane-plugin\build>

@@ -63,3 +63,12 @@ temp/
 .env
 .env.local
 .env.*.local
+
+# PyInstaller spec 文件
+*.spec
+
+# Trae IDE 配置
+.trae/
+
+# X-Plane SDK
+XPSDK430/
