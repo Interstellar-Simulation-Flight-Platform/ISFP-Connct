@@ -136,7 +136,7 @@ class XPlanePluginManager(QObject):
         return 12
     
     def get_plugin_path(self) -> Optional[str]:
-        """获取 ISFP Connect 插件路径"""
+        """获取 ISFP Connect 插件主目录（ISFPConnect 文件夹）"""
         if not self._xplane_path:
             return None
         plugin_path = os.path.join(
@@ -145,24 +145,23 @@ class XPlanePluginManager(QObject):
         )
         return plugin_path
     
+    def get_plugin_win64_path(self) -> Optional[str]:
+        """获取 ISFP Connect 插件 win_x64 目录"""
+        main_path = self.get_plugin_path()
+        if not main_path:
+            return None
+        return os.path.join(main_path, 'win_x64')
+    
     def is_plugin_installed(self) -> bool:
         """检查插件是否已安装"""
-        plugin_path = self.get_plugin_path()
-        if not plugin_path:
+        win64_path = self.get_plugin_win64_path()
+        if not win64_path or not os.path.exists(win64_path):
             return False
         
-        # 检查关键文件
-        required_files = ['ISFPConnect.xpl', 'ISFPConnect.dll']
-        for file in required_files:
-            if os.path.exists(os.path.join(plugin_path, file)):
+        # 检查 win_x64 文件夹中是否有 .xpl 文件
+        for file in os.listdir(win64_path):
+            if file.endswith('.xpl'):
                 return True
-        
-        # 检查 64 位插件
-        win64_path = os.path.join(plugin_path, 'win_x64')
-        if os.path.exists(win64_path):
-            for file in required_files:
-                if os.path.exists(os.path.join(win64_path, file)):
-                    return True
         
         return False
     
@@ -191,12 +190,13 @@ class XPlanePluginManager(QObject):
             return False, msg
         
         plugin_path = self.get_plugin_path()
+        win64_path = self.get_plugin_win64_path()
         
         try:
-            # 创建插件目录
-            os.makedirs(plugin_path, exist_ok=True)
+            # 创建插件目录结构：ISFPConnect/win_x64/
+            os.makedirs(win64_path, exist_ok=True)
             
-            # 获取源插件文件路径（假设插件文件在应用目录的 plugins 文件夹中）
+            # 获取源插件文件路径（从应用目录的 plugins 文件夹中）
             app_dir = os.path.dirname(os.path.abspath(__file__))
             source_plugin_dir = os.path.join(app_dir, 'plugins', f'xplane{self._version}')
             
@@ -209,11 +209,11 @@ class XPlanePluginManager(QObject):
                 self.plugin_installed.emit(False, msg)
                 return False, msg
             
-            # 复制插件文件
+            # 复制插件文件到 win_x64 目录
             copied_files = []
             for item in os.listdir(source_plugin_dir):
                 source = os.path.join(source_plugin_dir, item)
-                dest = os.path.join(plugin_path, item)
+                dest = os.path.join(win64_path, item)
                 
                 if os.path.isdir(source):
                     if os.path.exists(dest):
@@ -225,9 +225,9 @@ class XPlanePluginManager(QObject):
             
             # 保存安装状态到配置
             self.settings.setValue("xplane/plugin_installed", True)
-            self.settings.setValue("xplane/plugin_path", plugin_path)
+            self.settings.setValue("xplane/plugin_path", win64_path)
             
-            msg = f"插件安装成功！已复制 {len(copied_files)} 个文件到:\n{plugin_path}"
+            msg = f"插件安装成功！已复制 {len(copied_files)} 个文件到:\n{win64_path}"
             logger.info(msg)
             self.plugin_installed.emit(True, msg)
             return True, msg

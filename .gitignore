@@ -77,5 +77,4 @@ XPSDK430/
 .cache/
 xplane-plugin/.vs/
 xplane-plugin/build/
-!xplane-plugin/build/Release/ISFPConnect.dll
 xplane-plugin/out/
